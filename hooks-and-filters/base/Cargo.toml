@@ -1,0 +1,12 @@
+[package]
+name = "steel-hook-base-extension"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+steel-extension-api = { path = "../../../steel-extension-api" }
+steel-hook-example-contract = { path = "../contract" }

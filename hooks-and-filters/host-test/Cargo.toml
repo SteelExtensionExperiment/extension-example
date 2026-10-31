@@ -1,0 +1,15 @@
+[workspace]
+
+[package]
+name = "steel-hook-example-host-test"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+steel-extension-api = { path = "../../../steel-extension-api", features = ["host"] }
+steel-core = { path = "../../../steel-core" }
+steel-hook-example-contract = { path = "../contract" }
+
+[profile.test]
+debug = 0

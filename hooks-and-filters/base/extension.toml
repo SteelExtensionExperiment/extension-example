@@ -1,0 +1,11 @@
+[package]
+name = "hook-base-example"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libsteel_hook_base_extension.so"
+linux-aarch64 = "libsteel_hook_base_extension.so"
+macos-x86_64 = "libsteel_hook_base_extension.dylib"
+macos-aarch64 = "libsteel_hook_base_extension.dylib"
+windows-x86_64 = "steel_hook_base_extension.dll"
+windows-aarch64 = "steel_hook_base_extension.dll"

@@ -1,0 +1,8 @@
+[package]
+name = "steel-hook-example-contract"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+steel-extension-api = { path = "../../../steel-extension-api" }
