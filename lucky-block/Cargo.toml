@@ -1,0 +1,16 @@
+[package]
+name = "steel-lucky-block-extension"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+steel-extension-api = { path = "../../steel-extension-api" }
+steel-utils = { path = "../../steel-utils" }
+rand = "0.10.3"
+toml = "1.1.8"

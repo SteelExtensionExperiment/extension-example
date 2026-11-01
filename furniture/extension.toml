@@ -1,0 +1,11 @@
+[package]
+name = "furniture-example"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libsteel_furniture_extension.so"
+linux-aarch64 = "libsteel_furniture_extension.so"
+macos-x86_64 = "libsteel_furniture_extension.dylib"
+macos-aarch64 = "libsteel_furniture_extension.dylib"
+windows-x86_64 = "steel_furniture_extension.dll"
+windows-aarch64 = "steel_furniture_extension.dll"

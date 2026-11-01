@@ -11,6 +11,8 @@ bot controls, and world lifecycle implement the same minigame.
 | Example | What it does | Instructions |
 | --- | --- | --- |
 | Wool shearing | Replace wool interaction while delegating other block behavior. | [Build and use](wool-shearing/README.md) |
+| Lucky block | Register a yellow question-mark item and full block for vanilla clients; survival breaking opens random item rewards or block traps. | [Build and use](lucky-block/README.md) |
+| Furniture | Add a usable chair, vertical half slabs for all vanilla slab materials, and custom bed with sleeping and respawn. | [Build and use](furniture/README.md) |
 | Game of Life | Advance a configured block board through a world-tick callback. | [Build and use](game-of-life/README.md) |
 | Strange terrain | Register seeded floating-island, shell, and pillar terrain. | [Build and use](strange-terrain/README.md) |
 | Spleef | Run a minigame with commands, temporary worlds, bots, and player restoration. | [Build and use](spleef/README.md) |
@@ -34,6 +36,8 @@ SteelExtensionMC/
 ├── steel-extension-api/
 └── extension-example/
     ├── wool-shearing/
+    ├── lucky-block/
+    ├── furniture/
     ├── game-of-life/
     ├── strange-terrain/
     ├── spleef/
@@ -50,6 +54,8 @@ building. Run the following commands from the parent Steel checkout, using its
 ```sh
 git submodule update --init --recursive
 cargo build --manifest-path extension-example/wool-shearing/Cargo.toml --release
+cargo build --manifest-path extension-example/lucky-block/Cargo.toml --release
+cargo build --manifest-path extension-example/furniture/Cargo.toml --release
 cargo build --manifest-path extension-example/game-of-life/Cargo.toml --release
 cargo build --manifest-path extension-example/strange-terrain/Cargo.toml --release
 cargo build --manifest-path extension-example/spleef/Cargo.toml --release
