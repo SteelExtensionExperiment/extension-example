@@ -1,0 +1,11 @@
+[package]
+name = "vault"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libvault.so"
+linux-aarch64 = "libvault.so"
+macos-x86_64 = "libvault.dylib"
+macos-aarch64 = "libvault.dylib"
+windows-x86_64 = "vault.dll"
+windows-aarch64 = "vault.dll"

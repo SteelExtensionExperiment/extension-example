@@ -3,8 +3,8 @@ mod terrain;
 
 use std::sync::OnceLock;
 use steel_extension_api::{
-    ApiResult, BlockState, GeneratorRegistry, Hooks, default_block_state,
-    stabby::{self, str::Str, string::String as ApiString},
+    ApiResult, BlockState, ExtensionContext, GeneratorRegistry, Hooks, default_block_state,
+    stabby::{self, string::String as ApiString},
 };
 
 struct Materials {
@@ -31,7 +31,7 @@ fn register_generators(mut registry: GeneratorRegistry<'_>) -> ApiResult<()> {
     )
 }
 
-fn init(_config: Str<'_>) -> ApiResult<()> {
+fn init(_context: ExtensionContext<'_>) -> ApiResult<()> {
     let result = (|| -> Result<(), ApiString> {
         let materials = Materials {
             stone: default_block_state("minecraft:stone".into()).match_owned(Ok, Err)?,

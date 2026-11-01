@@ -1,0 +1,11 @@
+[package]
+name = "essentials"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libessentials.so"
+linux-aarch64 = "libessentials.so"
+macos-x86_64 = "libessentials.dylib"
+macos-aarch64 = "libessentials.dylib"
+windows-x86_64 = "essentials.dll"
+windows-aarch64 = "essentials.dll"

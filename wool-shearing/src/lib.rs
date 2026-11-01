@@ -2,13 +2,13 @@
 #![recursion_limit = "512"]
 
 use steel_extension_api::{
-    ApiResult, BlockPos, BlockState, Hooks, Registry, World,
+    ApiResult, BlockPos, BlockState, ExtensionContext, Hooks, Registry, World,
     block_behavior::{
         BlockBehavior, InteractionResult, OriginalBlockBehavior,
         types::{BlockHit, InteractionHand, Inventory, ItemStack, Player},
     },
     blocks_in_tag, default_block_state,
-    stabby::{self, str::Str, string::String as ApiString},
+    stabby::{self, string::String as ApiString},
 };
 
 fn pre_init(mut hooks: Hooks<'_>) -> ApiResult<()> {
@@ -38,7 +38,7 @@ fn register_blocks(mut registry: Registry<'_>) -> ApiResult<()> {
 }
 
 // All state is resolved during block registration; no runtime initialization is needed.
-fn init(_config: Str<'_>) -> ApiResult<()> {
+fn init(_context: ExtensionContext<'_>) -> ApiResult<()> {
     Ok(()).into()
 }
 

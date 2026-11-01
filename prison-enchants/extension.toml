@@ -1,0 +1,11 @@
+[package]
+name = "prison-enchants"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libprison_enchants.so"
+linux-aarch64 = "libprison_enchants.so"
+macos-x86_64 = "libprison_enchants.dylib"
+macos-aarch64 = "libprison_enchants.dylib"
+windows-x86_64 = "prison_enchants.dll"
+windows-aarch64 = "prison_enchants.dll"

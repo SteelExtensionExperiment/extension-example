@@ -1,0 +1,11 @@
+[package]
+name = "worldedit"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libworldedit.so"
+linux-aarch64 = "libworldedit.so"
+macos-x86_64 = "libworldedit.dylib"
+macos-aarch64 = "libworldedit.dylib"
+windows-x86_64 = "worldedit.dll"
+windows-aarch64 = "worldedit.dll"

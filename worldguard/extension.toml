@@ -1,0 +1,11 @@
+[package]
+name = "worldguard"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libworldguard.so"
+linux-aarch64 = "libworldguard.so"
+macos-x86_64 = "libworldguard.dylib"
+macos-aarch64 = "libworldguard.dylib"
+windows-x86_64 = "worldguard.dll"
+windows-aarch64 = "worldguard.dll"

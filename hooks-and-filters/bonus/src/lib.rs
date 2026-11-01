@@ -1,9 +1,6 @@
 //! Supplies an earlier score filter through the same shared contract as the base extension.
 
-use steel_extension_api::{
-    ApiResult, Hooks,
-    stabby::{self, str::Str},
-};
+use steel_extension_api::{ApiResult, ExtensionContext, Hooks, stabby};
 use steel_hook_example_contract::Score;
 
 fn pre_init(mut hooks: Hooks<'_>) -> ApiResult<()> {
@@ -19,7 +16,7 @@ fn double(score: &mut Score) {
 }
 
 // The score transformation is fully installed during pre-init.
-fn init(_config: Str<'_>) -> ApiResult<()> {
+fn init(_context: ExtensionContext<'_>) -> ApiResult<()> {
     Ok(()).into()
 }
 

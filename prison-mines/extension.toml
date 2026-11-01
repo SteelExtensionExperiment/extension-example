@@ -1,0 +1,11 @@
+[package]
+name = "prison-mines"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libprison_mines.so"
+linux-aarch64 = "libprison_mines.so"
+macos-x86_64 = "libprison_mines.dylib"
+macos-aarch64 = "libprison_mines.dylib"
+windows-x86_64 = "prison_mines.dll"
+windows-aarch64 = "prison_mines.dll"
