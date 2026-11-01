@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 use steel_extension_api::{
-    ApiResult, Command, Commands, Hooks,
+    ApiResult, Command, Commands, ExtensionContext, Hooks,
     hooks::{ServerStopAction, ServerTickAction, apply_filters, do_action},
     stabby::{self, str::Str, string::String as ApiString},
 };
@@ -92,7 +92,7 @@ fn run(command: Command<'_>, _action: Str<'_>) -> ApiResult<i32> {
 }
 
 // All subscriptions are installed during pre-init; the demo needs no configuration.
-fn init(_config: Str<'_>) -> ApiResult<()> {
+fn init(_context: ExtensionContext<'_>) -> ApiResult<()> {
     Ok(()).into()
 }
 

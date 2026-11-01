@@ -1,0 +1,37 @@
+[package]
+name = "prison-enchants"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+# Keep extension and host builds separate, including Cargo feature resolution.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+steel-extension-api = { path = "../../steel-extension-api" }
+prison-api = { path = "../prison-api" }
+vault-api = { path = "../vault-api" }
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+# `Server<'_>` and `World<'_>` are pointer-sized borrowed handles; helpers take them by
+# reference like every other host value so call sites stay uniform.
+trivially_copy_pass_by_ref = "allow"
+# Entrypoint and callback signatures are fixed by `export_extension!` and the closure helpers.
+needless_pass_by_value = "allow"
+# Docs name the original products (WorldEdit, EssentialsX) as prose, not code.
+doc_markdown = "allow"
+# Command trees read best as one declaration per command family.
+too_many_lines = "allow"
+# Stabby trait signatures name their lifetimes explicitly for ABI report canonicalization.
+needless_lifetimes = "allow"

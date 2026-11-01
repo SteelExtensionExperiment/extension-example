@@ -17,13 +17,13 @@ fn separate_extensions_reorder_the_filter_chain_across_the_native_boundary() -> 
     // Deliberately load base first: its add-five handler must still run after bonus.
     for name in ["steel_hook_base_extension", "steel_hook_bonus_extension"] {
         let path = directory.join(format!("{DLL_PREFIX}{name}{DLL_SUFFIX}"));
-        // SAFETY: these separately built trusted examples supply the checked v2
+        // SAFETY: these separately built trusted examples supply the checked v3
         // descriptors; the loader pins their libraries before installing callbacks.
         extensions.push(unsafe { host::load(&path, "", &mut hooks) }?);
     }
     init_globals();
     let _commands = CommandRegistry::new().freeze()?;
-    host::initialize_all(extensions, &mut hooks)?;
+    host::initialize_all(extensions, &extension_data_root(), &mut hooks)?;
     let mut score = Score { value: 10 };
     apply_filters(&mut score).match_owned(Ok, |e| Err(e.to_string()))?;
     assert_eq!(
@@ -33,4 +33,8 @@ fn separate_extensions_reorder_the_filter_chain_across_the_native_boundary() -> 
     do_action(&Scored { value: score.value }).match_owned(Ok, |e| Err(e.to_string()))?;
     do_action(&ServerTickAction { tick_count: 42 }).match_owned(Ok, |e| Err(e.to_string()))?;
     Ok(())
+}
+
+fn extension_data_root() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("steel-hook-example-tests-{}", std::process::id()))
 }

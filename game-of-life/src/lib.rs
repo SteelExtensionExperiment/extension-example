@@ -4,8 +4,8 @@ mod life;
 use serde::Deserialize;
 use std::sync::OnceLock;
 use steel_extension_api::{
-    ApiResult, BlockState, Hooks, default_block_state,
-    stabby::{str::Str, string::String as ApiString},
+    ApiResult, BlockState, ExtensionContext, Hooks, default_block_state,
+    stabby::string::String as ApiString,
 };
 
 struct Materials {
@@ -31,7 +31,8 @@ fn pre_init(mut hooks: Hooks<'_>) -> ApiResult<()> {
     Ok(()).into()
 }
 
-fn init(config: Str<'_>) -> ApiResult<()> {
+fn init(context: ExtensionContext<'_>) -> ApiResult<()> {
+    let config = context.config();
     let result = (|| -> Result<(), ApiString> {
         let config: Config =
             toml::from_str(config.as_str()).map_err(|error| ApiString::from(error.to_string()))?;

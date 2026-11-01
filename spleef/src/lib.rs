@@ -4,7 +4,7 @@ mod game;
 mod map;
 use std::sync::{Mutex, OnceLock};
 use steel_extension_api::{
-    ApiResult, Command, Commands, GeneratorRegistry, Hooks, Server,
+    ApiResult, Command, Commands, ExtensionContext, GeneratorRegistry, Hooks, Server,
     stabby::{self, str::Str, string::String as ApiString},
 };
 #[expect(
@@ -62,7 +62,8 @@ fn generators(mut registry: GeneratorRegistry<'_>) -> ApiResult<()> {
     clippy::disallowed_types,
     reason = "extension-private state must not link host-only steel-utils"
 )]
-fn init(config: Str<'_>) -> ApiResult<()> {
+fn init(context: ExtensionContext<'_>) -> ApiResult<()> {
+    let config = context.config();
     let result = (|| -> Result<(), String> {
         let config: game::Config = toml::from_str(config.as_str()).map_err(|e| e.to_string())?;
         config.validate()?;

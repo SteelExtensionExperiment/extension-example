@@ -12,14 +12,18 @@ fn the_base_example_works_when_the_ordering_target_is_absent() -> Result<(), Str
         .join("../target/debug")
         .join(format!("{DLL_PREFIX}steel_hook_base_extension{DLL_SUFFIX}"));
     let mut hooks = ExtensionHooks::default();
-    // SAFETY: the independently compiled trusted base example has the checked v2
+    // SAFETY: the independently compiled trusted base example has the checked v3
     // descriptor; load pins its code before retaining its callbacks.
     let extension = unsafe { host::load(&path, "", &mut hooks) }?;
     init_globals();
     let _commands = CommandRegistry::new().freeze()?;
-    host::initialize_all(vec![extension], &mut hooks)?;
+    host::initialize_all(vec![extension], &extension_data_root(), &mut hooks)?;
     let mut score = Score { value: 10 };
     apply_filters(&mut score).match_owned(Ok, |e| Err(e.to_string()))?;
     assert_eq!(score.value, 15);
     Ok(())
+}
+
+fn extension_data_root() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("steel-hook-example-tests-{}", std::process::id()))
 }
