@@ -1629,6 +1629,9 @@ dependencies = [
 [[package]]
 name = "steel-math"
 version = "0.16.1+mc26.3"
+dependencies = [
+ "glam",
+]
 
 [[package]]
 name = "steel-utils"

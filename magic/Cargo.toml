@@ -1,0 +1,15 @@
+[package]
+name = "steel-magic-extension"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+steel-extension-api = { path = "../../steel-extension-api" }
+serde = { version = "1.0", features = ["derive"] }
+toml = "1.1.8"
