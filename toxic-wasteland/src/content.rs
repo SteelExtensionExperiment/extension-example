@@ -103,7 +103,7 @@ pub fn register(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
                 .register_block_item(block)
                 .match_owned(|_| Ok(()), Err)?;
         }
-        Ok(())
+        crate::mobs::register(&mut registry)
     })();
     result.into()
 }

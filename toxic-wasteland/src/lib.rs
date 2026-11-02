@@ -1,7 +1,8 @@
 //! Toxic Wasteland: a green, poisonous sludge fluid, the wasteland biome it belongs to,
 //! a generated wasteland world with sludge lakes, and `/toxic` tools to bring both into
-//! any world. Vanilla clients need no mod or resource pack: they see sludge as tinted
-//! water and the biome as a regular synced biome.
+//! any world, plus its own mobs. Vanilla clients need no mod or resource pack: they see
+//! sludge as tinted water, the biome as a regular synced biome, and the mobs as
+//! vanilla slimes and husks.
 #![recursion_limit = "256"]
 
 mod commands;
@@ -9,6 +10,7 @@ mod config;
 mod content;
 mod features;
 mod generator;
+mod mobs;
 mod model;
 mod sludge;
 
@@ -114,6 +116,10 @@ fn pre_init(mut hooks: Hooks<'_>) -> ApiResult<()> {
         hooks
             .register_generator_registration(register_generators)
             .match_owned(Ok, Err)?;
+        hooks
+            .register_entity_behaviors(mobs::register_behaviors)
+            .match_owned(Ok, Err)?;
+        hooks.register_server_tick(mobs::spawn_tick);
         hooks
             .on_commands(commands::register)
             .map_err(ApiString::from)

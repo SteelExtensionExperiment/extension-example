@@ -12,6 +12,31 @@ pub struct Config {
     pub spread: Spread,
     pub world: WorldGen,
     pub commands: Commands,
+    pub mobs: Mobs,
+}
+
+/// Wasteland mob spawning around players.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Mobs {
+    pub enabled: bool,
+    /// Ticks between spawn attempts.
+    pub interval_ticks: u64,
+    /// Ghouls kept within 64 blocks of each player.
+    pub max_ghouls: u32,
+    /// Sludge slimes kept within 64 blocks of each player.
+    pub max_slimes: u32,
+}
+
+impl Default for Mobs {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            interval_ticks: 200,
+            max_ghouls: 3,
+            max_slimes: 4,
+        }
+    }
 }
 
 /// Biome and sludge colors as `#RRGGBB`.
@@ -209,6 +234,9 @@ impl Config {
         }
         if !(0..=64).contains(&self.world.relief) {
             return Err("world.relief: must be between 0 and 64".into());
+        }
+        if !(20..=72_000).contains(&self.mobs.interval_ticks) {
+            return Err("mobs.interval_ticks: must be between 20 and 72000".into());
         }
         if self.commands.max_volume == 0 {
             return Err("commands.max_volume: must be at least 1".into());

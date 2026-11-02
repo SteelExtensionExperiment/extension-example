@@ -1,6 +1,7 @@
 //! Player-head skins that give the nuclear blocks their look without a resource pack.
 //!
 //! - Uranium ore: <https://minecraft-heads.com/custom-heads/head/f96a322e-3a40-4636-807b-50c46d1e95b7>
+//! - Irradiated ghoul face ("Glowing One"): <https://minecraft-heads.com/custom-heads/head/9416e397-fa4a-4661-b34b-f9ecb382fcde>
 //! - Nuclear waste barrel: <https://minecraft-heads.com/custom-heads/head/3ee3a969-c3de-492d-944d-b0649a6271d0>
 
 use steel_extension_api::content::{HeadProfile, ItemAppearance, ItemDisplay};
@@ -25,6 +26,11 @@ pub const NUCLEAR_WASTE: Skin = Skin {
         -1_704_824_368,
     ],
     texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWM2NDU2OGFkZWJmMjg0NGRmODI0MzMyZGMyN2U0YzY2YThhOWFmNmI0ZDc1Mjc4MmY2MTBkYjYxZDA2NSJ9fX0=",
+};
+
+pub const GLOWING_ONE: Skin = Skin {
+    id: [-1_810_439_273, -95_795_615, -1_286_866_452, -1_283_261_218],
+    texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODUyMzgzMmJmNjAyMjM2NjJiMGY3NzlhNjk4NjMwYzFhOWYxODRmNzkwMGM5OTI3MjlhMTMzZjRmMDJkYmY2NCJ9fX0=",
 };
 
 impl Skin {

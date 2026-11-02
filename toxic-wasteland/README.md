@@ -33,6 +33,16 @@ into any world. Vanilla clients need no mod and no resource pack.
   Both nuclear blocks are full blocks with a player-head model, like the lucky-block
   example, so they need no resource pack.
 
+- **Mobs**, spawned on the surface around players in the wasteland (up to 3 ghouls
+  and 4 slimes within 64 blocks of each player):
+  - **Sludge Slime**: hops like a slime and poisons what it touches. When killed it
+    leaves a sludge puddle and splits into two Small Sludge Slimes.
+  - **Irradiated Ghoul**: a new mob with a glowing radioactive face. It hunts players,
+    and its blows poison and give nausea.
+
+  Clients see them as a slime and as a husk wearing the ghoul's head, so no mod is
+  needed.
+
 ## Build and install
 
 From the Steel checkout:
@@ -90,6 +100,9 @@ value stops the extension with a message naming it.
 | `world.uranium_chance` | `0.25` | Chance that a chunk shows a uranium patch. |
 | `world.base_height` / `relief` | `70` / `18` | Average surface height and hill size. |
 | `commands.max_volume` | `2000000` | Largest region `/toxic` edits. |
+| `mobs.enabled` | `true` | Whether the extension spawns its mobs. |
+| `mobs.interval_ticks` | `200` | Ticks between spawn attempts (20–72000). |
+| `mobs.max_ghouls` / `mobs.max_slimes` | `3` / `4` | How many stay within 64 blocks of each player. |
 
 ## How it works and its limits
 
@@ -104,6 +117,8 @@ blocks, and a green copy of the biome in cells that contain sludge.
   `toxic_wasteland:sludge_tint/minecraft/plains`.
 - Sludge does not waterlog blocks. A bucket used on a slab places sludge next to it.
 - Dispensers do not pour sludge buckets yet.
+- Mobs spawn only through the extension (Steel has no natural spawner yet), always
+  on the surface, day and night.
 - Mobs don't spawn in the wasteland biome, since extension biomes have no spawn
   lists yet.
 - Each uranium or barrel block is one item display per player who sees it, so the
@@ -125,6 +140,8 @@ ground, barrels on lake rims, a bounded number of displays), and command regions
 world and checks:
 
 - registration and client projection, including the nuclear blocks' models and drops
+- the mobs: client carriers, spawning, the ghoul's head, an AI tick, the slime's
+  split and puddle on death, and the ghoul being saved and reloaded as its own type
 - spreading
 - the tint and its refresh
 - poison and damage
