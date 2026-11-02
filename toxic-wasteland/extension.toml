@@ -1,0 +1,11 @@
+[package]
+name = "toxic-wasteland"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libtoxic_wasteland.so"
+linux-aarch64 = "libtoxic_wasteland.so"
+macos-x86_64 = "libtoxic_wasteland.dylib"
+macos-aarch64 = "libtoxic_wasteland.dylib"
+windows-x86_64 = "toxic_wasteland.dll"
+windows-aarch64 = "toxic_wasteland.dll"

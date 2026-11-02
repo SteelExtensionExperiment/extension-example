@@ -15,6 +15,7 @@ bot controls, and world lifecycle implement the same minigame.
 | Furniture | Add a usable chair, vertical half slabs for all vanilla slab materials, and custom bed with sleeping and respawn. | [Build and use](furniture/README.md) |
 | Game of Life | Advance a configured block board through a world-tick callback. | [Build and use](game-of-life/README.md) |
 | Strange terrain | Register seeded floating-island, shell, and pillar terrain. | [Build and use](strange-terrain/README.md) |
+| Toxic wasteland | A poisonous green sludge fluid shown as tinted water, its biome, a generated wasteland with sludge lakes, and `/toxic` paint/pour/drain tools. | [Build and use](toxic-wasteland/README.md) |
 | Spleef | Run a minigame with commands, temporary worlds, bots, and player restoration. | [Build and use](spleef/README.md) |
 | Actions and filters | Run a custom score through ordered filters in two libraries, then observe an action. | [Build and use](hooks-and-filters/README.md) |
 | Vault | Economy, permission and chat service contracts other extensions use, like Bukkit's Vault. | [Build and use](vault/README.md) |
