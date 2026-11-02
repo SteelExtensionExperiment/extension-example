@@ -4,6 +4,7 @@
 //! Heights come from three octaves of value noise over positional seeded samples, so a
 //! seed always produces the same world regardless of chunk order. Each lake is decided
 //! by its own chunk and stays inside it, because terrain generation writes one chunk.
+//! Dead trees, uranium, and barrels come from [`crate::features`].
 
 #![expect(
     clippy::cast_possible_truncation,
@@ -14,9 +15,15 @@
               `relief` all fit their target types"
 )]
 
+use std::collections::HashMap;
+
 use steel_extension_api::{BlockChange, BlockPos, BlockState, Terrain, stabby};
 
-use crate::{Materials, config::WorldGen};
+use crate::{
+    Materials,
+    config::WorldGen,
+    features::{Ground, Kind, decorate},
+};
 
 const HEIGHT_SALT: u64 = 0x7761_7374_655f_6800;
 const LAKE_SALT: u64 = 0x7761_7374_655f_6c00;
@@ -36,7 +43,7 @@ impl Samples for Terrain<'_> {
     }
 }
 
-fn unit(sample: u64) -> f64 {
+pub fn unit(sample: u64) -> f64 {
     // The top 53 bits map exactly onto [0, 1).
     (sample >> 11) as f64 / (1_u64 << 53) as f64
 }
@@ -112,7 +119,7 @@ impl Lake {
     }
 
     /// Whether a column belongs to the basin or the ring that holds it in.
-    fn holds(&self, x: i32, z: i32) -> bool {
+    pub fn holds(&self, x: i32, z: i32) -> bool {
         let rim = self.radius + 1;
         self.distance_sq(x, z) <= rim * rim
     }
@@ -196,6 +203,17 @@ fn solid(materials: &Materials, x: i32, y: i32, z: i32, ground: i32) -> BlockSta
     }
 }
 
+fn decoration_state(materials: &Materials, kind: Kind) -> BlockState {
+    match kind {
+        Kind::LogY => materials.dead_log[1],
+        Kind::LogX => materials.dead_log[0],
+        Kind::LogZ => materials.dead_log[2],
+        Kind::Moss => materials.hanging_moss,
+        Kind::Uranium => materials.uranium,
+        Kind::Barrel => materials.barrel,
+    }
+}
+
 #[stabby::export(callback)]
 pub fn generate(terrain: Terrain<'_>) {
     let config = crate::config();
@@ -226,6 +244,32 @@ pub fn generate(terrain: Terrain<'_>) {
             }
         }
     }
+    // Decorations replace terrain where they overlap it (roots, uranium) and add the rest.
+    let ground = Ground {
+        min_x,
+        min_z,
+        columns: &columns,
+        lake: Lake::of_chunk(&terrain, &config.world, min_x, min_z),
+    };
+    let index: HashMap<(i32, i32, i32), usize> = changes
+        .iter()
+        .enumerate()
+        .map(|(i, change)| ((change.pos.x, change.pos.y, change.pos.z), i))
+        .collect();
+    for placement in decorate(&terrain, &config.world, &ground) {
+        let state = decoration_state(materials, placement.kind);
+        match index.get(&(placement.x, placement.y, placement.z)) {
+            Some(&i) => changes[i].state = state,
+            None => changes.push(BlockChange {
+                pos: BlockPos {
+                    x: placement.x,
+                    y: placement.y,
+                    z: placement.z,
+                },
+                state,
+            }),
+        }
+    }
     if let Err(error) = terrain
         .write_blocks(changes.as_slice().into())
         .match_owned(Ok, Err)
@@ -235,11 +279,11 @@ pub fn generate(terrain: Terrain<'_>) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// `SplitMix64` over (seed, salt, x, z), standing in for the host's sampler.
-    struct Seeded(u64);
+    pub(crate) struct Seeded(pub(crate) u64);
 
     impl Samples for Seeded {
         fn sample(&self, salt: u64, x: i32, z: i32) -> u64 {

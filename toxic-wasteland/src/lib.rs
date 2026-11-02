@@ -7,7 +7,9 @@
 mod commands;
 mod config;
 mod content;
+mod features;
 mod generator;
+mod model;
 mod sludge;
 
 use std::sync::OnceLock;
@@ -30,6 +32,11 @@ pub struct Materials {
     pub gravel: BlockState,
     pub coarse_dirt: BlockState,
     pub cobblestone: BlockState,
+    /// Pale oak logs along the x, y, and z axes.
+    pub dead_log: [BlockState; 3],
+    pub hanging_moss: BlockState,
+    pub uranium: BlockState,
+    pub barrel: BlockState,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -63,6 +70,10 @@ fn state(key: &str) -> Result<BlockState, ApiString> {
     default_block_state(key.into()).match_owned(Ok, Err)
 }
 
+fn parse(text: &str) -> Result<BlockState, ApiString> {
+    parse_block_state(text.into()).match_owned(Ok, Err)
+}
+
 fn resolve_materials() -> Result<&'static Materials, ApiString> {
     if let Some(materials) = MATERIALS.get() {
         return Ok(materials);
@@ -70,7 +81,7 @@ fn resolve_materials() -> Result<&'static Materials, ApiString> {
     let mut sludge = [state(content::SLUDGE)?; 16];
     for (level, slot) in sludge.iter_mut().enumerate() {
         let text = format!("{}[level={level}]", content::SLUDGE);
-        *slot = parse_block_state(text.as_str().into()).match_owned(Ok, Err)?;
+        *slot = parse(&text)?;
     }
     let materials = Materials {
         sludge,
@@ -80,6 +91,14 @@ fn resolve_materials() -> Result<&'static Materials, ApiString> {
         gravel: state("minecraft:gravel")?,
         coarse_dirt: state("minecraft:coarse_dirt")?,
         cobblestone: state("minecraft:cobblestone")?,
+        dead_log: [
+            parse("minecraft:pale_oak_log[axis=x]")?,
+            parse("minecraft:pale_oak_log[axis=y]")?,
+            parse("minecraft:pale_oak_log[axis=z]")?,
+        ],
+        hanging_moss: state("minecraft:pale_hanging_moss")?,
+        uranium: state(content::URANIUM)?,
+        barrel: state(content::BARREL)?,
     };
     Ok(MATERIALS.get_or_init(|| materials))
 }

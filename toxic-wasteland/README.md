@@ -20,7 +20,18 @@ into any world. Vanilla clients need no mod and no resource pack.
 - **Wasteland biome**: an olive sky and fog, sickly grass and foliage, green water,
   drifting ash, no rain.
 - **Wasteland world**: seeded hills of coarse dirt and gravel over stone, all in the
-  wasteland biome, with sludge lakes.
+  wasteland biome, with sludge lakes. On top of that:
+  - **Dead trees**: bleached pale-oak trunks that lean over, with two or three bare,
+    crooked branches, roots breaking through the ground, and moss hanging from some
+    branches.
+  - **Uranium Ore**: patches of green-speckled ore in the surface. It is mined like
+    stone and drops itself.
+  - **Nuclear Waste** barrels: yellow barrels with the radiation symbol and green goo
+    on top, leaking at the edge of every sludge lake. They are mined like iron and
+    drop themselves.
+
+  Both nuclear blocks are full blocks with a player-head model, like the lucky-block
+  example, so they need no resource pack.
 
 ## Build and install
 
@@ -75,6 +86,8 @@ value stops the extension with a message naming it.
 | `spread.corrupt_water_chance` | `0.25` | Chance per random tick and neighbor that water becomes sludge; 0 disables. |
 | `spread.wither_ground_chance` | `0.15` | Same, for ground becoming coarse dirt. |
 | `world.lake_chance` | `0.3` | Chance that a wasteland chunk holds a lake. |
+| `world.tree_chance` | `0.35` | Chance per tree slot (two per chunk) of a dead tree. |
+| `world.uranium_chance` | `0.25` | Chance that a chunk shows a uranium patch. |
 | `world.base_height` / `relief` | `70` / `18` | Average surface height and hill size. |
 | `commands.max_volume` | `2000000` | Largest region `/toxic` edits. |
 
@@ -93,6 +106,10 @@ blocks, and a green copy of the biome in cells that contain sludge.
 - Dispensers do not pour sludge buckets yet.
 - Mobs don't spawn in the wasteland biome, since extension biomes have no spawn
   lists yet.
+- Each uranium or barrel block is one item display per player who sees it, so the
+  generator keeps them few: at most 16 per chunk.
+- Decorations stay inside the chunk that generates them, so trees never cross a chunk
+  border. Chunks generated before this version have no trees or nuclear blocks.
 
 ## Tests
 
@@ -103,10 +120,11 @@ cargo test -p steel-extension-api --features host --test toxic_wasteland -- --in
 ```
 
 The first command covers the configuration, generator determinism, lake coverage
-and containment, and command regions. The last loads the built library into a real
+and containment, decoration placement (inside the chunk, trees and uranium on dry
+ground, barrels on lake rims, a bounded number of displays), and command regions. The last loads the built library into a real
 world and checks:
 
-- registration and client projection
+- registration and client projection, including the nuclear blocks' models and drops
 - spreading
 - the tint and its refresh
 - poison and damage

@@ -58,6 +58,10 @@ pub struct Spread {
 pub struct WorldGen {
     /// Chance that a chunk holds a sludge lake.
     pub lake_chance: f64,
+    /// Chance per tree slot (two per chunk) of a dead tree.
+    pub tree_chance: f64,
+    /// Chance that a chunk shows a uranium ore patch.
+    pub uranium_chance: f64,
     pub base_height: i32,
     pub relief: i32,
 }
@@ -116,6 +120,8 @@ impl Default for WorldGen {
     fn default() -> Self {
         Self {
             lake_chance: 0.3,
+            tree_chance: 0.35,
+            uranium_chance: 0.25,
             base_height: 70,
             relief: 18,
         }
@@ -196,6 +202,8 @@ impl Config {
             self.spread.wither_ground_chance,
         )?;
         chance("world.lake_chance", self.world.lake_chance)?;
+        chance("world.tree_chance", self.world.tree_chance)?;
+        chance("world.uranium_chance", self.world.uranium_chance)?;
         if !(-32..=300).contains(&self.world.base_height) {
             return Err("world.base_height: must be between -32 and 300".into());
         }
