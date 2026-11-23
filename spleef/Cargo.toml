@@ -10,6 +10,7 @@ license = "AGPL-3.0-or-later"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+minigame-api = { path = "../minigame-api" }
 steel-extension-api = { path = "../../steel-extension-api" }
 serde = { version = "1", features = ["derive"] }
 toml = "1"

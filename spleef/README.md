@@ -1,17 +1,21 @@
 # Spleef example extension
 
-A standalone minigame using the non-host extension API. It contains no Steel core,
-registry, protocol, or worldgen dependencies.
+A minigame using the non-host extension API and the [Minigame room service](../minigame/README.md).
+Spleef supplies the lobby and arena maps, commands, timers, and game rules.
 
 Run these commands from the parent Steel checkout. Build it separately from the server:
 
 ```sh
+cargo build --manifest-path extension-example/minigame/Cargo.toml --release
 cargo build --manifest-path extension-example/spleef/Cargo.toml --release
 ```
 
-Add an extension entry to `config/config.toml` (Linux path shown):
+Add both extension entries to `config/config.toml` (Linux paths shown):
 
 ```toml
+[[extensions]]
+path = "extension-example/minigame/target/release/libsteel_minigame_extension.so"
+
 [[extensions]]
 path = "extension-example/spleef/target/release/libsteel_spleef_extension.so"
 
@@ -27,13 +31,14 @@ Use `steel_spleef_extension.dll` on Windows or `libsteel_spleef_extension.dylib`
 You can also package it from the Steel checkout:
 
 ```sh
+python3 package-extension.py extension-example/minigame
 python3 package-extension.py extension-example/spleef
 ```
 
-This writes `extensions/steel-spleef-extension.zip`. To configure the ZIP, replace
-only the `path` above with that archive path and keep `[extensions.config]`.
-Select either the raw library or the ZIP, and move any unused ZIP out of
-`./extensions` so it is not discovered as a second copy.
+This writes `extensions/steel-minigame-extension.zip` and
+`extensions/steel-spleef-extension.zip`. To use the ZIPs, update both paths above
+and keep `[extensions.config]` under the Spleef entry. Install one copy of each
+extension. Steel loads Minigame before Spleef through the declared dependency.
 
 Start the server with `cargo run`, then use:
 
@@ -80,6 +85,7 @@ Validation:
 
 ```sh
 cargo test --manifest-path extension-example/spleef/Cargo.toml
+cargo build --manifest-path extension-example/minigame/Cargo.toml
 cargo build --manifest-path extension-example/spleef/Cargo.toml
 cargo test -p steel-extension-api --features host --test spleef -- --include-ignored
 ```

@@ -1,4 +1,4 @@
-//! A standalone Spleef room. Game rules and AI live here; the host owns worlds and actors.
+//! Spleef maps and game rules using the shared Minigame room service.
 mod ai;
 mod game;
 mod map;
@@ -68,7 +68,7 @@ fn init(context: ExtensionContext<'_>) -> ApiResult<()> {
         let config: game::Config = toml::from_str(config.as_str()).map_err(|e| e.to_string())?;
         config.validate()?;
         map::initialize()?;
-        GAME.set(Mutex::new(game::Game::new(config)))
+        GAME.set(Mutex::new(game::Game::new(config, minigame_api::rooms()?)))
             .map_err(|_| "Spleef initialized twice")?;
         Ok(())
     })();
@@ -110,4 +110,11 @@ fn tick(server: Server<'_>, tick: u64) {
         game.begin_return();
     }
 }
-steel_extension_api::export_extension!("spleef-example", pre_init, init);
+steel_extension_api::export_extension! {
+    name: "spleef-example",
+    version: "0.1.0",
+    depends: ["minigame"],
+    soft_depends: [],
+    pre_init: pre_init,
+    init: init,
+}

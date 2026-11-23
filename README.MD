@@ -5,8 +5,8 @@ independent: loading wool shearing does not also enable Game of Life or install
 a terrain generator. The ports of Bukkit plugins (Vault, Essentials, WorldEdit,
 WorldGuard) and the OP Prison extensions do depend on each other through small
 service contract crates (`vault-api`, `worldedit-api`, `prison-api`), declared
-with `depends`/`soft_depends` so Steel loads them in order. Spleef remains one application because its commands, maps,
-bot controls, and world lifecycle implement the same minigame.
+with `depends`/`soft_depends` so Steel loads them in order. Spleef uses the
+`minigame-api` contract and the Minigame extension for its room lifecycle.
 
 | Example | What it does | Instructions |
 | --- | --- | --- |
@@ -18,6 +18,7 @@ bot controls, and world lifecycle implement the same minigame.
 | Game of Life | Advance a configured block board through a world-tick callback. | [Build and use](game-of-life/README.md) |
 | Strange terrain | Register seeded floating-island, shell, and pillar terrain. | [Build and use](strange-terrain/README.md) |
 | Toxic wasteland | A poisonous green sludge fluid shown as tinted water, its biome, a generated wasteland with sludge lakes, and `/toxic` paint/pour/drain tools. | [Build and use](toxic-wasteland/README.md) |
+| Minigame | Share temporary lobbies, arenas, transfers, and cleanup across games. | [Build and use](minigame/README.md) |
 | Spleef | Run a minigame with commands, temporary worlds, bots, and player restoration. | [Build and use](spleef/README.md) |
 | Actions and filters | Run a custom score through ordered filters in two libraries, then observe an action. | [Build and use](hooks-and-filters/README.md) |
 | Vault | Economy, permission and chat service contracts other extensions use, like Bukkit's Vault. | [Build and use](vault/README.md) |
@@ -43,6 +44,7 @@ SteelExtensionMC/
     ├── furniture/
     ├── game-of-life/
     ├── strange-terrain/
+    ├── minigame-api/, minigame/
     ├── spleef/
     ├── hooks-and-filters/
     ├── vault-api/, vault/, essentials/
@@ -63,6 +65,7 @@ python3 package-extension.py extension-example/creatures
 python3 package-extension.py extension-example/magic
 cargo build --manifest-path extension-example/game-of-life/Cargo.toml --release
 cargo build --manifest-path extension-example/strange-terrain/Cargo.toml --release
+cargo build --manifest-path extension-example/minigame/Cargo.toml --release
 cargo build --manifest-path extension-example/spleef/Cargo.toml --release
 cargo build --manifest-path extension-example/hooks-and-filters/Cargo.toml --release
 for crate in vault essentials worldedit worldguard prison-mines prison-enchants; do
