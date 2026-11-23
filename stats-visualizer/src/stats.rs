@@ -164,8 +164,12 @@ mod tests {
     #[test]
     fn replaces_stored_name() {
         let mut stats = Stats::default();
-        stats.apply(&outcome(vec![player(1, "old")], vec![])).unwrap();
-        stats.apply(&outcome(vec![player(1, "new")], vec![])).unwrap();
+        stats
+            .apply(&outcome(vec![player(1, "old")], vec![]))
+            .unwrap();
+        stats
+            .apply(&outcome(vec![player(1, "new")], vec![]))
+            .unwrap();
         assert_eq!(stats.players()[&uuid(1)].name, "new");
     }
 

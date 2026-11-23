@@ -4,6 +4,7 @@
 
 mod ranking;
 mod stats;
+mod storage;
 
 use steel_extension_api::{ExtensionContext, Hooks};
 
