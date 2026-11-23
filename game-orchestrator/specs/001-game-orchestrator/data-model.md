@@ -33,6 +33,7 @@ Validation at load: unique game type names, unique kit names per game type, `pla
 ## Persisted: `signs.toml`
 
 ```toml
+next_id = 1             # last number handed out; only grows, so an id is never reused
 [[signs]]
 id = "queue-1"          # assigned, never reused: queue-<n> or kit-<n>
 world = "lobby:main"

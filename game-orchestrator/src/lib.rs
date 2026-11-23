@@ -6,6 +6,7 @@ mod config;
 mod kits;
 mod queues;
 mod signs;
+mod store;
 
 use steel_extension_api::{ExtensionContext, Hooks};
 
