@@ -82,11 +82,11 @@ surfaces. Dependency fields are preserved. See the host's
 ## Verification
 
 ```sh
-cargo build --manifest-path extension-example/creatures/Cargo.toml
-cargo build --manifest-path extension-example/magic/Cargo.toml
+python3 package-extension.py extension-example/creatures --debug --output extension-example/creatures/target/test-extension.zip
+python3 package-extension.py extension-example/magic --debug --output extension-example/magic/target/test-extension.zip
 cargo test -p steel-extension-api --features host --lib host::creatures_and_magic -- --ignored
 ```
 
-The integration test loads both native libraries together and exercises all nine
+The integration test loads both extension ZIPs together and exercises all nine
 spells, capture, independent HUD updates and dependency edits through a real
 server and vanilla packet handlers.

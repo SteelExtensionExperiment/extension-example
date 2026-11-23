@@ -30,20 +30,7 @@ fn register_content(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
         registry
             .register_block_item(chair::definition())
             .match_owned(Ok, Err)?;
-        let config: toml::Table = registry
-            .config()
-            .as_str()
-            .parse()
-            .map_err(|error: toml::de::Error| ApiString::from(error.to_string()))?;
-        if config.keys().any(|key| key != "use_resource_pack") {
-            return Err("furniture configuration only accepts use_resource_pack".into());
-        }
-        let use_resource_pack = match config.get("use_resource_pack") {
-            None => false,
-            Some(toml::Value::Boolean(enabled)) => *enabled,
-            Some(_) => return Err("use_resource_pack must be a boolean".into()),
-        };
-        vertical_slab::register(&mut registry, use_resource_pack)?;
+        vertical_slab::register(&mut registry)?;
         registry
             .register_bed(bed::definition())
             .match_owned(Ok, Err)?;

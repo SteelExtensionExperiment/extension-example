@@ -106,17 +106,18 @@ HUD source `creatures-example:default` exports aliases `creature_1` through
 `creature_1_max_health` through `creature_6_max_health`. See the host's
 [player data and HUD guide](../../doc/extensions/player-data-and-hud.md) for owner layouts.
 
-The Poké, Super (Great), and Hyper (Ultra) head skins come from
-[Poké Ball](https://minecraft-heads.com/custom-heads/head/77222-pokeball),
+The three balls ship PNG icons and model JSON under `assets/creatures/` in the
+extension ZIP. Players without the
+pack see the matching head skins. The skins are [Poké Ball](https://minecraft-heads.com/custom-heads/head/77222-pokeball),
 [Great Ball](https://minecraft-heads.com/custom-heads/head/77224-great-ball), and
 [Ultra Ball](https://minecraft-heads.com/index.php/custom-heads/head/77223-ultra-ball)
-on Minecraft Heads. Their texture payloads are in `src/balls.rs`.
+on Minecraft Heads.
 
 ## Verification
 
 ```sh
-cargo build --manifest-path extension-example/creatures/Cargo.toml
-cargo build --manifest-path extension-example/magic/Cargo.toml
+python3 package-extension.py extension-example/creatures --debug --output extension-example/creatures/target/test-extension.zip
+python3 package-extension.py extension-example/magic --debug --output extension-example/magic/target/test-extension.zip
 cargo test -p steel-extension-api --features host --lib host::creatures_and_magic -- --ignored
 cargo test -p steel-extension-api --features host --lib host::entities
 ```

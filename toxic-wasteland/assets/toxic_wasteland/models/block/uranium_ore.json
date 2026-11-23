@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "toxic_wasteland:block/uranium_ore"
+  }
+}

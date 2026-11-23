@@ -44,6 +44,7 @@ pub(crate) fn cuboid(item: &str, center: [f32; 3], scale: [f32; 3]) -> ItemDispl
         translation: center,
         scale,
         rotation: [0.0, 0.0, 0.0, 1.0],
+        pack_transform: None.into(),
     }
 }
 

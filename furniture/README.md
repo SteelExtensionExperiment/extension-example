@@ -7,8 +7,8 @@ resource pack supplies distinct vertical-slab inventory models.
 | Item | Behavior |
 | --- | --- |
 | `furniture:chair` | A cushioned oak chair. Right-click to sit; sneak to stand up. One player can occupy it. Breaking its block dismounts the occupant and drops the chair. |
-| `furniture:<material>_vertical_slab` | A vertical half block with the matching slab texture, exact half-block server collision, and an automatically selected approximate vanilla client collision. |
-| `furniture:vertical_slab` | Original spruce alias, now also a vertical half slab. |
+| `furniture:<material>_vertical_slab` | A vertical half-block model with the source slab texture and exact oak-shelf collision. |
+| `furniture:vertical_slab` | Original spruce alias for the same vertical panel. |
 | `furniture:custom_bed` | An oak-frame blue bed. Places both halves, faces the placing player’s direction, supports player sleep and respawn, tracks occupancy, and drops exactly one custom bed when either half is mined. |
 
 Chairs and vertical slabs follow the player's horizontal direction when placed,
@@ -20,18 +20,16 @@ with additional oak posts, rails, headboard, and footboard. Added model parts
 have no independent collision. Their coordinates and seat pose are authored
 for the standard adult player model.
 
-A north-facing vertical slab occupies `z=0.0..0.5` with full height and width;
-the other facings rotate that half around the block center. Steel discovers
-all vanilla slab materials from the real registry: currently 101 variants,
-including woods, stone families, copper stages, wool, and concrete. No material
-allowlist is maintained. Each variant copies its source slab's gameplay/tool
-properties and self-drops its own item. They do not merge, form stair corners, or waterlog.
+A vertical slab looks half a block thick and uses the hitbox of a vanilla
+oak shelf. Steel rotates the collision, targeting outline, and model
+together so Minecraft predicts the same collision the server applies. Each variant copies its source slab’s
+gameplay and tool properties and drops its own item. Steel discovers these
+materials from the vanilla registry. Vertical slabs do not merge, form stair
+corners, or waterlog.
 
-Vanilla has no exact vertical half-block collision state. This example explicitly
-permits approximation: Steel chooses contained client collision while server
-physics use the exact half block. Walking into the portion missing on the client
-may produce movement corrections. Neither visual mode changes this limitation.
-A small model margin covers the visible carrier without coincident faces.
+A vanilla client may wait for Steel's block update when placing against the
+front face of a vertical slab. Steel processes the click against the slab's
+server-side state.
 
 Seats are temporary, invisible vanilla interaction entities with no targeting
 box. They are removed after dismounting or when the chair changes, and are
@@ -64,35 +62,13 @@ For a release package:
 python3 package-extension.py extension-example/furniture
 ```
 
-## Optional resource-pack version
+## Resource pack
 
-The default version rotates vanilla slab models and reuses their ordinary slab
-inventory icons. To obtain dedicated vertical-slab inventory icons/models:
-
-```sh
-python3 extension-example/furniture/generate-resource-pack.py
-```
-
-This produces `extension-example/furniture/dist/furniture-resource-pack.zip`
-using the current workspace target, local vanilla model parents, and extracted
-slab materials. It fails if `minecraft-src` is missing or targets another version.
-It references vanilla textures; it does not replace ordinary vanilla assets.
-
-Install and enable that ZIP in **each Minecraft client's resourcepacks folder**.
-Then select the pack version in `config/config.toml`, at the top level:
-
-```toml
-[[extensions]]
-path = "extensions/steel-furniture-extension.zip"
-
-[extensions.config]
-use_resource_pack = true
-```
-
-Restart Steel after changing modes. The same extension library implements both
-versions. Leave the option absent or `false` for the default no-pack version.
-Pack mode expects every client to enable the pack; missing assets show missing
-models. This example does not serve or automatically send a pack to clients.
+Furniture adds item definitions to Steel's combined resource pack during
+registration. Set `server.resource_pack.mode` to `optional` or `required` and
+configure the public pack URL to deliver them. Both client modes use the same
+vanilla slab mesh and placement transform. The pack also rotates that mesh
+in inventory. Players without the pack see the ordinary slab icon.
 
 ## Try it
 
@@ -119,10 +95,9 @@ After building the debug library:
 
 ```sh
 cargo test --profile cicd -p steel-extension-api --features host --test furniture -- --ignored
-STEEL_TEST_FURNITURE_PACK=1 cargo test --profile cicd -p steel-extension-api --features host --test furniture -- --ignored
 ```
 
-The native test loads this actual extension in the selected mode. It checks every
+The native test loads the built extension. It checks every
 slab material/model/projection, placement in all four directions, rotated seating,
 saved facing states, and real server collision on both halves of a block,
 placement/consumption, saving, mining, chair use/removal/persistence, both bed

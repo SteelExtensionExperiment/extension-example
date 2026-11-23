@@ -57,10 +57,10 @@ building. Run the following commands from the parent Steel checkout, using its
 ```sh
 git submodule update --init --recursive
 cargo build --manifest-path extension-example/wool-shearing/Cargo.toml --release
-cargo build --manifest-path extension-example/lucky-block/Cargo.toml --release
+python3 package-extension.py extension-example/lucky-block
 cargo build --manifest-path extension-example/furniture/Cargo.toml --release
-cargo build --manifest-path extension-example/creatures/Cargo.toml --release
-cargo build --manifest-path extension-example/magic/Cargo.toml --release
+python3 package-extension.py extension-example/creatures
+python3 package-extension.py extension-example/magic
 cargo build --manifest-path extension-example/game-of-life/Cargo.toml --release
 cargo build --manifest-path extension-example/strange-terrain/Cargo.toml --release
 cargo build --manifest-path extension-example/spleef/Cargo.toml --release
@@ -121,6 +121,21 @@ any archives discovered automatically alongside a raw library.
 
 Restart after building or changing configuration. Native extensions are trusted
 code and remain loaded until the process exits; hot reload is unsupported.
+
+## Resource packs
+
+Furniture, Lucky Block, Toxic Wasteland, Magic, and Creatures contribute their
+custom visuals to one Steel pack. Their blocks and items retain fallback
+appearances for players who join without it.
+
+Lucky Block, Toxic Wasteland, Magic, and Creatures ship their PNGs and model JSON
+under `assets/` in their extension ZIPs. Build those examples with
+`package-extension.py` to include the assets.
+
+Use `[server.resource_pack]` in Steel's configuration to choose `disabled`,
+`optional`, or `required`. Steel writes the ZIP and offers the configured URL.
+Set `bind` to serve it on Steel's HTTP listener, or leave `bind` out and serve
+the output ZIP from an existing web server.
 
 ## Development checks
 

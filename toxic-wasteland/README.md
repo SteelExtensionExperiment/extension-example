@@ -30,8 +30,9 @@ into any world. Vanilla clients need no mod and no resource pack.
     on top, leaking at the edge of every sludge lake. They are mined like iron and
     drop themselves.
 
-  Both nuclear blocks are full blocks with a player-head model, like the lucky-block
-  example, so they need no resource pack.
+  Steel's resource pack supplies a single textured cube per nuclear block for
+  inventory and placement. Players without the pack see the uranium and barrel
+  head skins, with one enlarged head per placed block.
 
 - **Mobs**, spawned on the surface around players in the wasteland (up to 3 ghouls
   and 4 slimes within 64 blocks of each player):
@@ -48,13 +49,11 @@ into any world. Vanilla clients need no mod and no resource pack.
 From the Steel checkout:
 
 ```sh
-cargo build --release --manifest-path extension-example/toxic-wasteland/Cargo.toml
 python3 package-extension.py extension-example/toxic-wasteland
 ```
 
-This creates `extensions/toxic-wasteland.zip`. You can also copy
-`extension-example/toxic-wasteland/target/release/libtoxic_wasteland.so` into
-`extensions/`. WorldEdit is optional: install it to use selections with `/toxic`.
+This creates `extensions/toxic-wasteland.zip` with the PNG and model JSON files
+from `assets/toxic_wasteland/`. Install WorldEdit to use its selections with `/toxic`.
 
 To add the wasteland world, put this in `config/worlds.toml`:
 
@@ -130,13 +129,13 @@ blocks, and a green copy of the biome in cells that contain sludge.
 
 ```sh
 cargo test --manifest-path extension-example/toxic-wasteland/Cargo.toml
-cargo build --manifest-path extension-example/toxic-wasteland/Cargo.toml
+python3 package-extension.py extension-example/toxic-wasteland --debug --output extension-example/toxic-wasteland/target/test-extension.zip
 cargo test -p steel-extension-api --features host --test toxic_wasteland -- --include-ignored
 ```
 
 The first command covers the configuration, generator determinism, lake coverage
 and containment, decoration placement (inside the chunk, trees and uranium on dry
-ground, barrels on lake rims, a bounded number of displays), and command regions. The last loads the built library into a real
+ground, barrels on lake rims, a bounded number of displays), and command regions. The last loads the extension ZIP into a real
 world and checks:
 
 - registration and client projection, including the nuclear blocks' models and drops

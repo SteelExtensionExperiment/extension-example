@@ -32,18 +32,11 @@ pub(crate) struct LuckyBlock {
 }
 
 impl LuckyBlock {
-    pub(crate) fn new(original: OriginalBlockBehavior, config: &str) -> Result<Self, ApiString> {
-        let settings: toml::Table = config
-            .parse()
-            .map_err(|error: toml::de::Error| ApiString::from(error.to_string()))?;
-        if settings.keys().any(|key| key != "seed") {
-            return Err("lucky-block configuration only accepts 'seed'".into());
-        }
-        let seed = match settings.get("seed") {
-            None => rand::random(),
-            Some(toml::Value::Integer(seed)) => *seed as u64,
-            Some(_) => return Err("lucky-block 'seed' must be an integer".into()),
-        };
+    pub(crate) fn new(
+        original: OriginalBlockBehavior,
+        seed: Option<u64>,
+    ) -> Result<Self, ApiString> {
+        let seed = seed.unwrap_or_else(rand::random);
         // Resolve and validate every reward before installing the behavior.
         for (key, count) in REWARDS {
             ItemStack::from_key(key.into(), count).match_owned(Ok, Err)?;

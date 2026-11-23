@@ -9,10 +9,7 @@ use steel_extension_api::{
     stabby::{self, string::String as ApiString},
 };
 
-use crate::{
-    config::Config,
-    model::{NUCLEAR_WASTE, Skin, URANIUM_ORE},
-};
+use crate::config::Config;
 
 pub const BIOME: &str = "toxic_wasteland:wasteland";
 pub const SLUDGE: &str = "toxic_wasteland:sludge";
@@ -20,16 +17,14 @@ pub const BUCKET: &str = "toxic_wasteland:sludge_bucket";
 pub const URANIUM: &str = "toxic_wasteland:uranium_ore";
 pub const BARREL: &str = "toxic_wasteland:nuclear_waste";
 
-/// A full block with a head model, mined like `material` and dropping itself.
-fn nuclear_block(key: &str, name: &str, material: &str, skin: &Skin) -> BlockItemDefinition {
+/// A textured full block, mined like `material` and dropping itself.
+fn nuclear_block(key: &str, name: &str, material: &str) -> BlockItemDefinition {
     BlockItemDefinition {
-        block: BlockDefinition::new(key)
-            .properties(BlockProperties::of_full_copy(material))
-            .displays(skin.block_displays()),
+        block: BlockDefinition::new(key).properties(BlockProperties::of_full_copy(material)),
         item: ItemDefinition {
             key: key.into(),
             name: name.into(),
-            appearance: skin.appearance(),
+            appearance: ItemAppearance::new(material),
             max_stack_size: 64,
         },
         drop_self: true,
@@ -68,11 +63,7 @@ fn sludge(config: &Config) -> Result<FluidDefinition, String> {
         .bucket(ItemDefinition {
             key: BUCKET.into(),
             name: "Bucket of Toxic Sludge".into(),
-            appearance: ItemAppearance {
-                item: "minecraft:water_bucket".into(),
-                model: None.into(),
-                profile: None.into(),
-            },
+            appearance: ItemAppearance::new("minecraft:water_bucket").with_model(BUCKET),
             max_stack_size: 1,
         });
     sludge.converts_to_source = config.sludge.converts_to_source;
@@ -83,26 +74,33 @@ fn sludge(config: &Config) -> Result<FluidDefinition, String> {
 pub fn register(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
     let result = (|| -> Result<(), ApiString> {
         let config = crate::config_from(registry.config().as_str())?;
+        for (key, name, material, skin) in [
+            (
+                URANIUM,
+                "Uranium Ore",
+                "minecraft:stone",
+                "90614e3abf64d53496794cd8ae68597fc7266c61794bd1e48d4519868ae3cad0",
+            ),
+            (
+                BARREL,
+                "Nuclear Waste",
+                "minecraft:iron_block",
+                "9c64568adebf2844df824332dc27e4c66a8a9af6b4d752782f610db61d065",
+            ),
+        ] {
+            registry
+                .register_head_fallback(key.into(), skin.into())
+                .match_owned(Ok, Err)?;
+            registry
+                .register_block_item(nuclear_block(key, name, material).with_cube_model(key))
+                .match_owned(|_| Ok(()), Err)?;
+        }
         registry
             .register_biome(biome(config)?)
             .match_owned(Ok, Err)?;
         registry
             .register_fluid(sludge(config)?)
             .match_owned(|_| Ok(()), Err)?;
-        let blocks = [
-            nuclear_block(URANIUM, "Uranium Ore", "minecraft:stone", &URANIUM_ORE),
-            nuclear_block(
-                BARREL,
-                "Nuclear Waste",
-                "minecraft:iron_block",
-                &NUCLEAR_WASTE,
-            ),
-        ];
-        for block in blocks {
-            registry
-                .register_block_item(block)
-                .match_owned(|_| Ok(()), Err)?;
-        }
         crate::mobs::register(&mut registry)
     })();
     result.into()

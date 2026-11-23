@@ -1,16 +1,12 @@
 # Lucky block
 
-Registers `lucky:lucky_block` as a real custom block and item. An unmodified
-Minecraft client sees a textured player-head item in inventory, oak planks for
-collision and mining, and a full-block yellow question-mark head display covering the placed
-block. No client mod or resource pack is required.
-
-The inventory item and placed model share the
-[yellow question-mark lucky-block skin](https://minecraft-heads.com/custom-heads/head/4663-lucky-block-yellow)
-by Luck. One enlarged head displays a complete question mark on each face. The
-model expands by 0.2% around the block center to avoid coincident surfaces with
-the planks; collision stays one block. The skin uses Minecraft's normal texture
-downloads.
+Registers `lucky:lucky_block` as a custom block and item. A single PNG supplies
+the yellow question-mark model in inventory and on the placed block for clients
+that load Steel's resource pack. Players without the pack see the
+[published yellow Lucky Block skin](https://minecraft-heads.com/custom-heads/head/4663-lucky-block-yellow)
+by Luck as a single-head preview. After the generated tiles have been published
+and configured, the placed block uses eight head displays with the pixels from
+the PNG. The inventory continues to show one head.
 
 Survival placement consumes one item. Hand and axe mining follow oak-plank
 rules. Each successful survival break opens the block with one random outcome;
@@ -58,37 +54,25 @@ The live sequence is shared by this example's lucky blocks across worlds. It
 restarts when the server restarts; its RNG state is not saved with chunks.
 This custom behavior does not use or change vanilla loot tables.
 
-## Build
-
-From the parent Steel checkout, using its nightly toolchain:
-
-```sh
-cargo build --manifest-path extension-example/lucky-block/Cargo.toml --release
-```
-
 This is an independent workspace using `steel-extension-api` without `host`.
 It also links `steel-utils` privately for its RNG and mutex; those Rust values
 stay inside the extension and never cross the native API boundary.
 See the [example index](../README.MD) for the checkout layout.
 
-## Package and install
+## Build and install
 
 ```sh
 python3 package-extension.py extension-example/lucky-block
 ```
 
 The package is `extensions/steel-lucky-block-extension.zip`. Steel discovers it
-automatically in `./extensions`; no configuration is needed. For a raw debug
-library instead, build without `--release` and add this at the top level of
-`config/config.toml` on Linux:
+automatically in `./extensions`. The ZIP carries the PNG and model JSON from
+`assets/lucky/`. Use `--debug` to package a debug build, then restart Steel.
 
-```toml
-[[extensions]]
-path = "extension-example/lucky-block/target/debug/libsteel_lucky_block_extension.so"
-```
+## Appearance without the pack
 
-Use the `.dylib` or `.dll` listed in `extension.toml` on macOS or Windows. Select
-one installed copy of the example, then restart the server.
+The example selects one published Lucky Block head through `register_head_fallback`.
+Players without the pack see the same head in inventory and on the placed block.
 
 ## Try it
 
@@ -107,14 +91,14 @@ package so Steel loads the updated native library.
 
 ## Validate
 
-Build the debug library first. The native test loads it in a separate host
+Build the test ZIP first. The native test loads it in a separate host
 process and exercises registration, inventory and creative codecs, nested items,
 placement and inventory consumption, every reward and both traps with a fixed
 seed, creative removal, terrain preservation, unavailable trap footprints,
 ordinary oak-plank drops, chunk persistence, and display cleanup:
 
 ```sh
-cargo build --manifest-path extension-example/lucky-block/Cargo.toml
+python3 package-extension.py extension-example/lucky-block --debug --output extension-example/lucky-block/target/test-extension.zip
 cargo test --profile cicd -p steel-extension-api --features host --test lucky_block -- --ignored
 ```
 

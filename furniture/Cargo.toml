@@ -11,4 +11,4 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 steel-extension-api = { path = "../../steel-extension-api" }
-toml = "1.1.8"
+serde_json = "1.0.154"

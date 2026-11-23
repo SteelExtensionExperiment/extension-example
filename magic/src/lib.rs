@@ -44,11 +44,7 @@ fn register(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
         key: WAND.into(),
         name: "Spell wand".into(),
         max_stack_size: 1,
-        appearance: ItemAppearance {
-            item: "minecraft:blaze_rod".into(),
-            model: None.into(),
-            profile: None.into(),
-        },
+        appearance: ItemAppearance::new("minecraft:blaze_rod").with_model(WAND),
     })
 }
 fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
