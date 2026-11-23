@@ -125,7 +125,7 @@ Remaining, all blocked on 005's bindings:
    callback that drives `Startup::tick` and `Reporter::poll`.
 3. The manual check in `quickstart.md`, and decision O1 (native test).
 
-Hard to finish before then: nothing else. Resume at item 1 once host 005 is merged.
+Nothing else can be finished before then. Resume at item 1 once host 005 is merged.
 
 ## Complexity Tracking
 
