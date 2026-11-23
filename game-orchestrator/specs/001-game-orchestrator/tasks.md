@@ -40,8 +40,8 @@ description: "Task list for the Game Orchestrator extension (queues, kits, signs
 
 ## Phase 4: Kits (P1)
 
-- [ ] T008 [US3] `src/kits.rs` (host part): snapshot slots 0-40 and game mode from the administrator, apply a kit back for `kit save`, `kit load`. **Waits for O1** (lossy item snapshot, R1). Tests after O1: round trip of every readable field; empty slots; armor and off hand.
-- [ ] T012 [US2] `src/signs.rs` (host part): subscribe sign-edit (validate, register, rewrite lines) and interact (queue and kit signs act as the command and kit choice); `sign list|remove`. **Waits for research R3** (verify the block at a registered position; stale entries).
+- [x] T008 [US3] `src/kits.rs` (host part): snapshot slots 0-40 and game mode from the administrator, apply a kit back for `kit save`, `kit load`. Done with host spec 007's `InventorySnapshot` (O1 decided). Tests after O1: round trip of every readable field; empty slots; armor and off hand.
+- [x] T012 [US2] `src/signs.rs` (host part): subscribe sign-edit (validate, register, rewrite lines) and interact (queue and kit signs act as the command and kit choice); `sign list|remove`. Done: sign-edit registration uses `SignChangeEvent::world()`; a click checks that the block key still ends in `_sign`; editing a registered sign to other text unregisters it.
 
 ## Phase 5: Matches and results (deferred)
 

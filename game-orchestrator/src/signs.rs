@@ -1,19 +1,11 @@
 //! Sign text parsing and the registry of registered signs.
 
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "needs the world of a sign-edit event, which the host does not expose"
-    )
-)]
-
 use std::fmt;
 
 use crate::kits::Kit;
 
-const QUEUE_HEADER: &str = "[Queue]";
-const KIT_HEADER: &str = "[Kit]";
+pub(crate) const QUEUE_HEADER: &str = "[Queue]";
+pub(crate) const KIT_HEADER: &str = "[Kit]";
 const QUEUE_ID_PREFIX: &str = "queue";
 const KIT_ID_PREFIX: &str = "kit";
 
@@ -186,12 +178,7 @@ mod tests {
     }
 
     fn catalog() -> HashMap<String, Vec<Kit>> {
-        HashMap::from([(
-            "skywars".to_owned(),
-            vec![Kit {
-                name: "knight".into(),
-            }],
-        )])
+        HashMap::from([("skywars".to_owned(), vec![Kit::named("knight")])])
     }
 
     fn pos(x: i32) -> SignPos {

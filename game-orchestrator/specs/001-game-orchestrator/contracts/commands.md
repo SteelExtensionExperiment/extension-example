@@ -19,8 +19,8 @@ Two trees registered with `CommandBuilder` (pattern: `extension-example/worldedi
 | `/orchestrator gametype enable\|disable <name>` | `orchestrator.gametype` | Switches a game type. Disable clears its queue with a message. |
 | `/orchestrator gametype remove <name>` | `orchestrator.gametype` | Removes the game type, its kits, signs and choices; clears its queue. |
 | `/orchestrator gametype list` | `orchestrator.list` | Game types: N, enabled, kits, queue size. |
-| `/orchestrator kit save <gametype> <kit>` | `orchestrator.kit` | Stores the sender's slots 0-40 and game mode as the kit, replacing an earlier one. Player only. **Waits for O1.** |
-| `/orchestrator kit load <gametype> <kit>` | `orchestrator.kit` | Replaces the sender's inventory and game mode with the kit (O4). Player only. **Waits for O1.** |
+| `/orchestrator kit save <gametype> <kit>` | `orchestrator.kit` | Stores the sender's slots 0-40 and game mode as the kit, replacing an earlier one. Player only. |
+| `/orchestrator kit load <gametype> <kit>` | `orchestrator.kit` | Replaces the sender's inventory and game mode with the kit (O4). Player only. |
 | `/orchestrator kit remove <gametype> <kit>` | `orchestrator.kit` | Removes the kit; choices for it become invalid. |
 | `/orchestrator kit list <gametype>` | `orchestrator.list` | Kits of the game type. |
 | `/orchestrator open [<hours>]` | `orchestrator.session` | Opens queueing; with hours, closes it after that time (at most `max_session_hours`). Without hours it stays open (O7). |

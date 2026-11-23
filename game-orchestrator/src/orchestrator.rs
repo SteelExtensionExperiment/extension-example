@@ -7,12 +7,12 @@
 use std::collections::HashMap;
 
 use arena_manager_api::MatchId;
-use steel_extension_api::players::Uuid;
+use steel_extension_api::{inventory_snapshot::InventorySnapshot, players::Uuid};
 
 use crate::{
     access::{Access, GameAccess, JoinRefusal, TICKS_PER_SECOND},
     config::Config,
-    kits,
+    kits::{self, Kit},
     queues::{Joined, Queues},
     signs::{SignKind, SignPos, validate},
     store::{GameType, MIN_PLAYERS, Store, StoreError},
@@ -227,17 +227,18 @@ impl Orchestrator {
         Some(result)
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "needs the world of a sign-edit event, which the host does not expose"
-        )
-    )]
     pub(crate) fn register_sign(&mut self, pos: SignPos, kind: SignKind) -> Result<String, String> {
         let id = self.store.signs.register(pos, kind);
         saved(self.store.save_signs())?;
         Ok(id)
+    }
+
+    /// A sign registered at `pos` was edited so that it no longer names this extension.
+    pub(crate) fn unregister_sign_at(&mut self, pos: &SignPos) -> Result<Option<String>, String> {
+        let Some(id) = self.store.signs.at(pos).map(|sign| sign.id.clone()) else {
+            return Ok(None);
+        };
+        self.remove_sign(&id).map(Some)
     }
 
     pub(crate) fn sign_lines(&self) -> Vec<String> {
@@ -349,6 +350,75 @@ impl Orchestrator {
             &format!("game type {name} was removed, you left its queue"),
         );
         Ok((format!("removed game type {name}"), notice))
+    }
+
+    /// Stores the administrator's inventory as the kit, replacing a kit of that name.
+    pub(crate) fn save_kit(
+        &mut self,
+        game_type: &str,
+        kit: &str,
+        snapshot: InventorySnapshot,
+    ) -> Result<String, String> {
+        let found = self.game_type_mut(game_type)?;
+        let replaced = kits::save(
+            &mut found.kits,
+            Kit {
+                name: kit.to_owned(),
+                snapshot,
+            },
+        );
+        saved(self.store.save_game_types())?;
+        let verb = if replaced { "replaced" } else { "saved" };
+        Ok(format!("{verb} kit {game_type}/{kit}"))
+    }
+
+    pub(crate) fn kit_snapshot(
+        &self,
+        game_type: &str,
+        kit: &str,
+    ) -> Result<InventorySnapshot, String> {
+        let found = self
+            .store
+            .game_type(game_type)
+            .ok_or_else(|| format!("unknown game type {game_type}"))?;
+        found
+            .kits
+            .iter()
+            .find(|candidate| candidate.name == kit)
+            .map(|candidate| candidate.snapshot.clone())
+            .ok_or_else(|| format!("unknown kit {game_type}/{kit}"))
+    }
+
+    /// Each player's chosen kit snapshot for a match request, in player order.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "called when arena-manager-api's PlayerEntry carries the kit"
+        )
+    )]
+    pub(crate) fn request_players(
+        &self,
+        game_type: &str,
+        players: &[Uuid],
+    ) -> Result<Vec<(Uuid, InventorySnapshot)>, String> {
+        let found = self
+            .store
+            .game_type(game_type)
+            .ok_or_else(|| format!("unknown game type {game_type}"))?;
+        players
+            .iter()
+            .map(|player| {
+                let chosen = self
+                    .store
+                    .choices
+                    .get(&(*player, game_type.to_owned()))
+                    .map(String::as_str);
+                let kit = kits::resolve(&found.kits, chosen)
+                    .ok_or_else(|| format!("{player} has no kit for {game_type}"))?;
+                Ok((*player, kit.snapshot.clone()))
+            })
+            .collect()
     }
 
     pub(crate) fn remove_kit(&mut self, game_type: &str, kit: &str) -> Result<String, String> {
@@ -484,12 +554,12 @@ mod tests {
         let mut orchestrator =
             Orchestrator::new(Store::load(dir).unwrap(), Config::parse(None).unwrap());
         orchestrator.create_game_type("skywars", 2).unwrap();
-        orchestrator.store.game_types[0].kits.push(Kit {
-            name: "knight".into(),
-        });
-        orchestrator.store.game_types[0].kits.push(Kit {
-            name: "archer".into(),
-        });
+        orchestrator.store.game_types[0]
+            .kits
+            .push(Kit::named("knight"));
+        orchestrator.store.game_types[0]
+            .kits
+            .push(Kit::named("archer"));
         orchestrator.open(0, None).unwrap();
         orchestrator
     }
@@ -616,6 +686,34 @@ mod tests {
                 .unwrap()
                 .unwrap_err()
                 .contains("unknown kit")
+        );
+    }
+
+    #[test]
+    fn kits_are_saved_loaded_and_resolved_per_player() {
+        let mut o = orchestrator("kitsave");
+        let mut snapshot = o.kit_snapshot("skywars", "knight").unwrap();
+        snapshot.format = 9;
+        assert_eq!(
+            o.save_kit("skywars", "knight", snapshot.clone()).unwrap(),
+            "replaced kit skywars/knight"
+        );
+        assert_eq!(
+            o.save_kit("skywars", "mage", snapshot.clone()).unwrap(),
+            "saved kit skywars/mage"
+        );
+        assert_eq!(o.kit_snapshot("skywars", "mage").unwrap(), snapshot);
+        assert!(o.kit_snapshot("skywars", "nope").is_err());
+
+        let bob = Uuid { bytes: [2; 16] };
+        o.choose_kit(ALICE, "skywars", "knight").unwrap();
+        o.choose_kit(bob, "skywars", "archer").unwrap();
+        let request = o.request_players("skywars", &[ALICE, bob]).unwrap();
+        assert_eq!(request[0].1, snapshot);
+        assert_ne!(request[1].1, snapshot);
+        assert!(
+            o.request_players("skywars", &[Uuid { bytes: [3; 16] }])
+                .is_err()
         );
     }
 

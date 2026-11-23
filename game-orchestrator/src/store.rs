@@ -5,12 +5,14 @@
 
 use std::{
     collections::{BTreeSet, HashMap},
-    fmt, fs,
+    fmt,
+    fmt::Write as _,
+    fs,
     path::{Path, PathBuf},
 };
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use steel_extension_api::players::Uuid;
+use steel_extension_api::{inventory_snapshot::InventorySnapshot, players::Uuid};
 
 use crate::{
     kits::Kit,
@@ -24,6 +26,8 @@ const GAME_TYPES_FILE: &str = "gametypes.toml";
 const SIGNS_FILE: &str = "signs.toml";
 const CHOICES_FILE: &str = "choices.toml";
 const STATE_FILE: &str = "state.toml";
+const HEX_DIGITS_PER_BYTE: usize = 2;
+const HEX_RADIX: u32 = 16;
 const SIGN_KIND_QUEUE: &str = "queue";
 const SIGN_KIND_KIT: &str = "kit";
 
@@ -93,6 +97,27 @@ struct GameTypeEntry {
 #[derive(Serialize, Deserialize)]
 struct KitEntry {
     name: String,
+    /// `InventorySnapshot::format`.
+    format: u32,
+    /// `InventorySnapshot::data` as lowercase hex; the bytes are opaque to this extension.
+    data: String,
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().fold(String::new(), |mut text, byte| {
+        let _ = write!(text, "{byte:02x}");
+        text
+    })
+}
+
+fn hex_decode(text: &str) -> Option<Vec<u8>> {
+    if !text.is_ascii() || !text.len().is_multiple_of(HEX_DIGITS_PER_BYTE) {
+        return None;
+    }
+    (0..text.len())
+        .step_by(HEX_DIGITS_PER_BYTE)
+        .map(|start| u8::from_str_radix(&text[start..start + HEX_DIGITS_PER_BYTE], HEX_RADIX).ok())
+        .collect()
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -178,7 +203,18 @@ fn game_types_from(file: GameTypesFile) -> Result<Vec<GameType>, StoreError> {
                 let cause = format!("duplicate kit {}/{}", entry.name, kit.name);
                 return Err(StoreError::new(GAME_TYPES_FILE, cause));
             }
-            kits.push(Kit { name: kit.name });
+            let Some(data) = hex_decode(&kit.data) else {
+                let cause = format!("kit {}/{} has invalid data", entry.name, kit.name);
+                return Err(StoreError::new(GAME_TYPES_FILE, cause));
+            };
+            let snapshot = InventorySnapshot {
+                format: kit.format,
+                data: data.into_iter().collect(),
+            };
+            kits.push(Kit {
+                name: kit.name,
+                snapshot,
+            });
         }
         game_types.push(GameType {
             name: entry.name,
@@ -281,6 +317,8 @@ impl Store {
                     .iter()
                     .map(|kit| KitEntry {
                         name: kit.name.clone(),
+                        format: kit.snapshot.format,
+                        data: hex_encode(kit.snapshot.data.as_slice()),
                     })
                     .collect(),
             })
@@ -362,6 +400,10 @@ mod tests {
             enabled: false,
             kits: vec![Kit {
                 name: "knight".into(),
+                snapshot: InventorySnapshot {
+                    format: 1,
+                    data: [0, 15, 255, 16].into_iter().collect(),
+                },
             }],
         });
         let pos = SignPos {
@@ -413,7 +455,7 @@ mod tests {
             ),
             (
                 GAME_TYPES_FILE,
-                "[[game_types]]\nname='a'\nplayers=2\nenabled=true\n[[game_types.kits]]\nname='k'\n[[game_types.kits]]\nname='k'",
+                "[[game_types]]\nname='a'\nplayers=2\nenabled=true\n[[game_types.kits]]\nname='k'\nformat=1\ndata=''\n[[game_types.kits]]\nname='k'\nformat=1\ndata=''",
                 "duplicate kit a/k",
             ),
             (
@@ -425,6 +467,11 @@ mod tests {
                 CHOICES_FILE,
                 "[[choices]]\nuuid='nope'\ngame_type='a'\nkit='k'",
                 "invalid uuid",
+            ),
+            (
+                GAME_TYPES_FILE,
+                "[[game_types]]\nname='a'\nplayers=2\nenabled=true\n[[game_types.kits]]\nname='k'\nformat=1\ndata='zz'",
+                "has invalid data",
             ),
             (STATE_FILE, "open = [", ""),
         ] {

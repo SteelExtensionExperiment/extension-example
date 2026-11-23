@@ -12,23 +12,13 @@ enabled = true
 
 [[game_types.kits]]
 name = "knight"         # unique within the game type
-game_mode = "survival"  # survival | creative | adventure | spectator
-
-[[game_types.kits.items]]
-slot = 0                # 0-8 hotbar, 9-35 main, 36-39 armor (feet to head), 40 off hand
-item = "minecraft:iron_sword"
-count = 1
-name = ""               # optional
-lore = []               # optional
-unbreakable = false
-glint = "default"       # default | on | off
-enchantments = [{ key = "minecraft:sharpness", level = 2 }]
-data = []               # extension data entries { key, value }
+format = 1              # InventorySnapshot::format
+data = "0a0b..."        # InventorySnapshot::data as lowercase hex, opaque binary NBT
 ```
 
-Empty slots are not written. A slot appears at most once. The item fields mirror `ItemSpec`; if O1 is resolved with a full item snapshot, `items` is replaced by that opaque value and this section is revised.
+A kit is the host's `InventorySnapshot` of the administrator (slots 0-40, selected hotbar slot, game mode; host spec 007). The bytes are stored as produced and never interpreted here.
 
-Validation at load: unique game type names, unique kit names per game type, `players >= 2`, slot range 0..=40, no duplicate slot, valid game mode and glint.
+Validation at load: unique game type names, unique kit names per game type, `players >= 2`, kit `data` is valid hex. The host validates the snapshot itself when it is restored.
 
 ## Persisted: `signs.toml`
 

@@ -1,38 +1,41 @@
 //! Kit model and kit choice resolution.
 
-/// A named kit of a game type.
-///
-/// The item payload and game mode are added together with the lossless item snapshot of host
-/// spec 007 (spec O1); until then a kit is only its name.
+use steel_extension_api::inventory_snapshot::InventorySnapshot;
+#[cfg(test)]
+use steel_extension_api::{
+    inventory_snapshot::INVENTORY_SNAPSHOT_FORMAT, stabby::vec::Vec as ApiVec,
+};
+
+/// A named kit of a game type: a snapshot of an administrator's inventory (slots 0-40, selected
+/// hotbar slot and game mode), kept as the opaque bytes the host produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Kit {
     pub name: String,
+    pub snapshot: InventorySnapshot,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "used by `kit save` once the item snapshot of host spec 007 exists"
-    )
-)]
-pub(crate) struct DuplicateKit;
+impl Kit {
+    #[cfg(test)]
+    pub(crate) fn named(name: impl Into<String>) -> Self {
+        let snapshot = InventorySnapshot {
+            format: INVENTORY_SNAPSHOT_FORMAT,
+            data: ApiVec::new(),
+        };
+        Self {
+            name: name.into(),
+            snapshot,
+        }
+    }
+}
 
-/// Adds `kit`, refusing a name the game type already has.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "used by `kit save` once the item snapshot of host spec 007 exists"
-    )
-)]
-pub(crate) fn add(kits: &mut Vec<Kit>, kit: Kit) -> Result<(), DuplicateKit> {
-    if kits.iter().any(|existing| existing.name == kit.name) {
-        return Err(DuplicateKit);
+/// Stores `kit`, replacing an earlier kit of the same name; true when it replaced one.
+pub(crate) fn save(kits: &mut Vec<Kit>, kit: Kit) -> bool {
+    if let Some(existing) = kits.iter_mut().find(|existing| existing.name == kit.name) {
+        *existing = kit;
+        return true;
     }
     kits.push(kit);
-    Ok(())
+    false
 }
 
 /// Removes the kit called `name`, returning it.
@@ -58,9 +61,7 @@ mod tests {
     fn kits(names: &[&str]) -> Vec<Kit> {
         names
             .iter()
-            .map(|name| Kit {
-                name: (*name).to_owned(),
-            })
+            .map(|name| Kit::named((*name).to_owned()))
             .collect()
     }
 
@@ -89,27 +90,15 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_names_are_rejected() {
+    fn saving_replaces_a_kit_of_the_same_name() {
         let mut list = kits(&["knight"]);
-        assert_eq!(
-            add(
-                &mut list,
-                Kit {
-                    name: "knight".into()
-                }
-            ),
-            Err(DuplicateKit)
-        );
-        assert_eq!(list.len(), 1);
+        let mut changed = Kit::named("knight");
+        changed.snapshot.format += 1;
+        assert!(save(&mut list, changed.clone()));
+        assert_eq!(list, vec![changed]);
+        assert!(!save(&mut list, Kit::named("archer")));
+        assert_eq!(list.len(), 2);
         assert!(remove(&mut list, "knight").is_some());
-        assert!(
-            add(
-                &mut list,
-                Kit {
-                    name: "knight".into()
-                }
-            )
-            .is_ok()
-        );
+        assert!(list.iter().all(|kit| kit.name != "knight"));
     }
 }

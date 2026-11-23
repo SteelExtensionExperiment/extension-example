@@ -1,7 +1,6 @@
 //! `/queue` for players and `/orchestrator` for administrators.
 //!
-//! `/orchestrator kit save|load` and `/orchestrator match` are not registered yet: they need the
-//! item snapshot of host spec 007 and a kit in the match request.
+//! `/orchestrator match` is not registered yet: it needs a kit in the match request.
 
 use steel_extension_api::{
     Commands,
@@ -21,7 +20,7 @@ const PERM_GAMETYPE: &str = "orchestrator.gametype";
 const PERM_KIT: &str = "orchestrator.kit";
 const PERM_LIST: &str = "orchestrator.list";
 const PERM_SESSION: &str = "orchestrator.session";
-const PERM_SIGN: &str = "orchestrator.sign";
+pub(crate) const PERM_SIGN: &str = "orchestrator.sign";
 
 const NEEDS_PLAYER: &str = "this command needs a player";
 const ARG_GAME_TYPE: &str = "gametype";
@@ -168,6 +167,38 @@ fn players_arg(ctx: &Invocation<'_, '_>) -> Result<u32, String> {
         .map_err(|_| format!("players must be at least {MIN_PLAYERS}"))
 }
 
+fn kit_save() -> Node {
+    admin("save", PERM_KIT).then(
+        game_type_arg().then(argument(ARG_KIT, Arg::word()).executes(|ctx| {
+            let player = ctx.player().map_err(|_| NEEDS_PLAYER.to_owned())?;
+            let (game_type, kit) = (ctx.string(ARG_GAME_TYPE)?, ctx.string(ARG_KIT)?);
+            let snapshot = ctx
+                .server()
+                .inventory_snapshot(player)
+                .match_owned(Ok, |error| Err(error.to_string()))?;
+            reply(ctx, |orchestrator| {
+                orchestrator.save_kit(&game_type, &kit, snapshot)
+            })
+        })),
+    )
+}
+
+fn kit_load() -> Node {
+    admin("load", PERM_KIT).then(
+        game_type_arg().then(argument(ARG_KIT, Arg::word()).executes(|ctx| {
+            let player = ctx.player().map_err(|_| NEEDS_PLAYER.to_owned())?;
+            let (game_type, kit) = (ctx.string(ARG_GAME_TYPE)?, ctx.string(ARG_KIT)?);
+            let snapshot = host::with(|orchestrator| orchestrator.kit_snapshot(&game_type, &kit))??;
+            ctx.send_legacy("&eThis replaces your inventory and game mode.");
+            ctx.server()
+                .restore_inventory(player, &snapshot)
+                .match_owned(Ok, |error| Err(error.to_string()))?;
+            ctx.send_legacy(&format!("&aloaded kit {game_type}/{kit}"));
+            Ok(1)
+        })),
+    )
+}
+
 fn kit_tree() -> Node {
     let remove = admin("remove", PERM_KIT).then(game_type_arg().then(
         argument(ARG_KIT, Arg::word()).executes(|ctx| {
@@ -185,7 +216,11 @@ fn kit_tree() -> Node {
         );
         Ok(1)
     }));
-    literal("kit").then(remove).then(list)
+    literal("kit")
+        .then(kit_save())
+        .then(kit_load())
+        .then(remove)
+        .then(list)
 }
 
 fn session_tree() -> Vec<Node> {
