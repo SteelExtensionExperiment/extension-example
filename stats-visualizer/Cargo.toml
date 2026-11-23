@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 steel-extension-api = { path = "../../steel-extension-api" }
+game-orchestrator-api = { path = "../game-orchestrator-api" }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 

@@ -58,7 +58,7 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 **Independent Test**: deliver a result and see counts and boards change (spec US2).
 
-- [ ] T007 [US2] Add the orchestrator dependency (`Cargo.toml` path dependency and `depends: ["game-orchestrator"]` in `export_extension!`) and `src/results.rs`: register the listener, map the orchestrator result to the crate's plain struct (T003), apply it, mark dirty, refresh boards of that game type only. **Waits for the orchestrator spec and its `game-orchestrator-api` crate (O3).** Tests: only boards of the result's game type refresh; a rejected result changes neither stats nor boards.
+- [x] T007 [US2] Add the orchestrator dependency (`Cargo.toml` path dependency and `depends: ["game-orchestrator"]` in `export_extension!`) and `src/results.rs`: register the listener, map the orchestrator result to the crate's plain struct (T003), apply it, mark dirty, refresh boards of that game type only. **Waits for the orchestrator spec and its `game-orchestrator-api` crate (O3).** Tests: only boards of the result's game type refresh; a rejected result changes neither stats nor boards.
 - [ ] T008 [US3] Restore boards: on `init` and `on_world_load`, create each saved board's hologram if its world is loaded; on `on_world_unload`, mark boards of that world inactive (the host drops the holograms). A board whose world never appears stays saved. **Waits for spec 006 T007 (create, update, remove bindings).** Tests with fakes: boards of a loading world come back; others are untouched; a refused creation is logged once.
 
 ---
@@ -71,7 +71,7 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 - [ ] T009 [US4] Add `src/commands.rs`: `/statsboard place|remove|list` ([contracts/commands.md](contracts/commands.md)) with permissions, id validation, player position and console coordinates, save on place and remove, completion of board ids. **Waits for spec 006 T007 (create, update, remove bindings).** Tests: syntax, permissions, id rules, duplicate id, console without coordinates, remove of an unknown id.
 - [ ] T010 [US4] Validate the game type against the orchestrator in `place` and complete `<gametype>` from its list. **Waits for the orchestrator contract (T007).** Tests with a fake game type source: unknown type rejected, known type accepted, completion lists the source's types.
-- [ ] T011 [US2] Reject a result for an unlisted game type with a log line, and mark boards of a vanished game type `unknown game type` in `list`. **Waits for T007.** Tests: both paths.
+- [x] T011 [US2] Reject a result for an unlisted game type with a log line, and mark boards of a vanished game type `unknown game type` in `list`. **Waits for T007.** Tests: both paths.
 
 ---
 

@@ -3,7 +3,9 @@
 #![recursion_limit = "256"]
 
 mod config;
+mod game_types;
 mod ranking;
+mod results;
 mod state;
 mod stats;
 mod storage;
@@ -22,10 +24,6 @@ fn log_errors(errors: Vec<String>) {
     }
 }
 
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "signature fixed by export_extension!"
-)]
 fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
     hooks.enable_scheduler();
     hooks.on_shutdown(|_| {
@@ -38,6 +36,7 @@ fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
         }
         log_errors(errors);
     });
+    results::register(&mut hooks)?;
     Ok(())
 }
 
@@ -71,7 +70,7 @@ fn init(context: ExtensionContext<'_>) -> Result<(), String> {
 steel_extension_api::export_extension! {
     name: "stats-visualizer",
     version: "0.1.0",
-    depends: [],
+    depends: ["game-orchestrator"],
     soft_depends: [],
     pre_init: pre_init,
     init: init,
