@@ -1,15 +1,16 @@
 //! `/queue` for players and `/orchestrator` for administrators.
 //!
-//! `/orchestrator match` is not registered yet: it needs a kit in the match request.
 
+use arena_manager_api::{MatchState, MatchesDyn as _};
 use steel_extension_api::{
-    Commands,
+    Commands, PlayerId, Server,
     command::{Arg, CommandBuilder, Invocation, Node, argument, literal},
     players::Uuid,
     scheduler,
 };
 
 use crate::{
+    arena,
     host::{self, deliver},
     orchestrator::{Notice, Orchestrator},
     store::MIN_PLAYERS,
@@ -20,6 +21,7 @@ const PERM_GAMETYPE: &str = "orchestrator.gametype";
 const PERM_KIT: &str = "orchestrator.kit";
 const PERM_LIST: &str = "orchestrator.list";
 const PERM_SESSION: &str = "orchestrator.session";
+const PERM_MATCH: &str = "orchestrator.match";
 pub(crate) const PERM_SIGN: &str = "orchestrator.sign";
 
 const NEEDS_PLAYER: &str = "this command needs a player";
@@ -89,13 +91,14 @@ fn queue_tree() -> CommandBuilder {
         let text = host::with(|orchestrator| orchestrator.join(player, &game_type))?
             .map_err(|refusal| refusal.to_string())?;
         ctx.send_legacy(&format!("&a{text}"));
+        arena::pump(&ctx.server());
         Ok(1)
     }));
     let leave = literal("leave").executes(|ctx| {
         let player = player_uuid(ctx)?;
         let left = host::with(|orchestrator| orchestrator.leave(player))?;
         ctx.send_legacy(&left.map_or_else(
-            || "&eyou are not queued".to_owned(),
+            || "&e".to_owned() + "you are not queued",
             |name| format!("&aleft the queue for {name}"),
         ));
         Ok(1)
@@ -127,7 +130,9 @@ fn gametype_tree() -> Node {
     let players = admin("players", PERM_GAMETYPE).then(game_type_arg().then(
         argument(ARG_PLAYERS, Arg::integer(1, i32::MAX)).executes(|ctx| {
             let (name, players) = (ctx.string(ARG_GAME_TYPE)?, players_arg(ctx)?);
-            reply(ctx, |orchestrator| orchestrator.set_players(&name, players))
+            let result = reply(ctx, |orchestrator| orchestrator.set_players(&name, players));
+            arena::pump(&ctx.server());
+            result
         }),
     ));
     let switch = |name: &'static str, enabled: bool| {
@@ -266,6 +271,60 @@ fn sign_tree() -> Node {
     literal("sign").then(list).then(remove)
 }
 
+fn match_state(state: MatchState) -> &'static str {
+    match state {
+        MatchState::Preparing => "preparing",
+        MatchState::Starting => "starting",
+        MatchState::Running => "running",
+        MatchState::Ending => "ending",
+    }
+}
+
+/// Running matches as arena-manager reports them.
+fn running_matches(server: Server<'_>) -> Vec<String> {
+    let Ok(arena) = arena_manager_api::matches() else {
+        return vec!["arena manager not available".to_owned()];
+    };
+    arena
+        .matches(server)
+        .iter()
+        .map(|info| {
+            let alive = info.players.iter().filter(|player| player.alive).count();
+            format!(
+                "match #{}: {} on {}, {}, {alive}/{} alive",
+                info.id,
+                info.game_type,
+                info.arena,
+                match_state(info.state),
+                info.players.len()
+            )
+        })
+        .collect()
+}
+
+fn match_tree() -> Node {
+    admin("match", PERM_MATCH).then(game_type_arg().then(
+        argument(ARG_PLAYERS, Arg::greedy()).executes(|ctx| {
+            let game_type = ctx.string(ARG_GAME_TYPE)?;
+            let server = ctx.server();
+            let mut players = Vec::new();
+            for name in ctx.string(ARG_PLAYERS)?.split_whitespace() {
+                let id = Option::<PlayerId>::from(server.player_by_name(name.into()))
+                    .ok_or_else(|| format!("player {name} is not online"))?;
+                players.push((id.uuid(), name.to_owned()));
+            }
+            host::with(|orchestrator| orchestrator.admin_match(&game_type, &players))??;
+            let uuids: Vec<Uuid> = players.iter().map(|(uuid, _)| *uuid).collect();
+            arena::submit(&server, &game_type, uuids);
+            ctx.send_legacy(&format!(
+                "&arequested a {game_type} match for {} players",
+                players.len()
+            ));
+            Ok(1)
+        }),
+    ))
+}
+
 fn orchestrator_tree() -> CommandBuilder {
     let status = admin("status", PERM_LIST).executes(|ctx| {
         let now = scheduler::current_tick();
@@ -273,6 +332,7 @@ fn orchestrator_tree() -> CommandBuilder {
             ctx,
             &host::with(|orchestrator| orchestrator.status_lines(now))?,
         );
+        send_lines(ctx, &running_matches(ctx.server()));
         Ok(1)
     });
     let queues = admin("queues", PERM_LIST).executes(|ctx| {
@@ -293,7 +353,8 @@ fn orchestrator_tree() -> CommandBuilder {
         .then(kit_tree())
         .then(status)
         .then(queues)
-        .then(sign_tree());
+        .then(sign_tree())
+        .then(match_tree());
     for node in session_tree() {
         tree = tree.then(node);
     }

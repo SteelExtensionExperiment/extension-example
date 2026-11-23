@@ -5,6 +5,7 @@
 #![recursion_limit = "256"]
 
 mod access;
+mod arena;
 mod commands;
 mod config;
 mod host;
@@ -41,8 +42,9 @@ fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
     hooks.on_commands(commands::register)?;
     hooks.on_quit(EventPriority::Monitor, |event| {
         let player = event.player().uuid();
-        if let Err(error) = host::with(|orchestrator| orchestrator.quit(player)) {
-            log::error(error);
+        match host::with(|orchestrator| orchestrator.quit(player)) {
+            Ok(notices) => host::deliver(&event.server(), notices),
+            Err(error) => log::error(error),
         }
     });
     hooks.on_interact_with(EventPriority::Normal, true, |event| {
@@ -75,7 +77,10 @@ fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
         event.set_cancelled(true);
         let server = event.server();
         match result {
-            Ok(text) => host::tell(&server, player, &format!("&a{text}")),
+            Ok(text) => {
+                host::tell(&server, player, &format!("&a{text}"));
+                arena::pump(&server);
+            }
             Err(text) => host::tell(&server, player, &format!("&c{text}")),
         }
     });
@@ -92,7 +97,7 @@ fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
 }
 
 /// Registers `[Queue]`/`[Kit]` signs. Sign text stays plain: the canonical header is written back
-/// without colour codes.
+/// without color codes.
 fn on_sign_change(event: &mut SignChangeEvent<'_>) {
     if !event.front() {
         return;

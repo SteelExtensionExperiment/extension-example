@@ -17,7 +17,7 @@ The orchestrator owns the contract it **provides** and never copies the one it *
 
 | Need | How |
 | --- | --- |
-| Start a match | `arena_manager_api::matches()?.start_match(..)` at use time; a kit per player once host spec 007 exists. Capacity rejections are retried; other rejections are reported to the players. |
+| Start a match | `arena_manager_api::matches()?.start_match(..)` at use time; a kit per player once host spec 007 exists. Capacity rejections are retried; other rejections are reported to the players. arena-manager's contract has no typed rejection cause, so a capacity rejection is recognised by the text `no capacity` (its spec D7). If `matches()` is not registered, players are told `arena manager not available` and re-queued. |
 | Results | Handler for action `MatchFinished`, registered in `pre_init`; it maps the result and emits `MatchResult`. |
 | Failures | Handler for `MatchFailed`; players are told, the queue entry is released, no result is emitted. |
 | List matches | `matches()` for `/orchestrator status`. |

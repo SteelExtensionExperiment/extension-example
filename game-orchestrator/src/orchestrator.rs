@@ -13,7 +13,7 @@ use crate::{
     access::{Access, GameAccess, JoinRefusal, TICKS_PER_SECOND},
     config::Config,
     kits::{self, Kit},
-    queues::{Joined, Queues},
+    queues::{Formed, Joined, Queues},
     signs::{SignKind, SignPos, validate},
     store::{GameType, MIN_PLAYERS, Store, StoreError},
 };
@@ -47,12 +47,21 @@ struct MatchRef {
     players: Vec<Uuid>,
 }
 
+/// A request that arena-manager rejected for capacity. Its players are in neither a queue nor a
+/// match until a retry succeeds.
+pub(crate) struct Pending {
+    pub game_type: String,
+    pub players: Vec<Uuid>,
+}
+
 pub(crate) struct Orchestrator {
     pub store: Store,
     pub config: Config,
     pub access: Access,
     queues: Queues<Uuid>,
     matches: HashMap<MatchId, MatchRef>,
+    pending: HashMap<u64, Pending>,
+    next_pending: u64,
 }
 
 impl Orchestrator {
@@ -64,6 +73,8 @@ impl Orchestrator {
             access,
             queues: Queues::default(),
             matches: HashMap::new(),
+            pending: HashMap::new(),
+            next_pending: 0,
         }
     }
 
@@ -107,27 +118,48 @@ impl Orchestrator {
     }
 
     /// The player disconnected: they leave their queue and are not re-queued if a match fails.
-    pub(crate) fn quit(&mut self, player: Uuid) {
+    /// A request waiting for capacity that holds them is dropped as a whole and the others go
+    /// back to the front of the queue.
+    pub(crate) fn quit(&mut self, player: Uuid) -> Vec<Notice> {
         self.queues.leave(player);
         for running in self.matches.values_mut() {
             running.players.retain(|member| *member != player);
         }
+        let Some(id) = self
+            .pending
+            .iter()
+            .find(|(_, held)| held.players.contains(&player))
+            .map(|(id, _)| *id)
+        else {
+            return Vec::new();
+        };
+        let Some(mut held) = self.pending.remove(&id) else {
+            return Vec::new();
+        };
+        held.players.retain(|member| *member != player);
+        self.queues.push_front(&held.game_type, &held.players);
+        notices(
+            held.players,
+            "a player left before the match started, you are back in the queue",
+        )
     }
 
     fn in_match(&self, player: Uuid) -> bool {
+        self.match_of(player).is_some()
+            || self
+                .pending
+                .values()
+                .any(|held| held.players.contains(&player))
+    }
+
+    fn match_of(&self, player: Uuid) -> Option<(MatchId, &str)> {
         self.matches
-            .values()
-            .any(|running| running.players.contains(&player))
+            .iter()
+            .find(|(_, running)| running.players.contains(&player))
+            .map(|(id, running)| (*id, running.game_type.as_str()))
     }
 
     /// Records a match accepted by arena-manager.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "called once start_match can carry a kit per player (host spec 007)"
-        )
-    )]
     pub(crate) fn begin_match(&mut self, id: MatchId, game_type: &str, players: Vec<Uuid>) {
         self.matches.insert(
             id,
@@ -159,6 +191,12 @@ impl Orchestrator {
 
     /// `/queue` for a player.
     pub(crate) fn queue_status(&self, player: Uuid) -> Vec<String> {
+        if let Some((id, game_type)) = self.match_of(player) {
+            return vec![format!("you are in match #{id} of {game_type}")];
+        }
+        if self.in_match(player) {
+            return vec!["your match is being prepared".to_owned()];
+        }
         if let Some((game_type, position)) = self.queues.position(player) {
             let needed = self
                 .store
@@ -389,24 +427,31 @@ impl Orchestrator {
             .ok_or_else(|| format!("unknown kit {game_type}/{kit}"))
     }
 
-    /// Each player's chosen kit snapshot for a match request, in player order.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "called when arena-manager-api's PlayerEntry carries the kit"
-        )
-    )]
-    pub(crate) fn request_players(
-        &self,
+    /// Pops the first N players of every full queue, in game type name order.
+    pub(crate) fn form_requests(&mut self) -> Vec<Formed<Uuid>> {
+        let store = &self.store;
+        self.queues.form(|name| {
+            store
+                .game_type(name)
+                .and_then(|found| usize::try_from(found.players).ok())
+        })
+    }
+
+    /// Each player's chosen kit snapshot for a match request, in player order. When a player no
+    /// longer has a valid kit (it was removed after they queued) they are told and dropped, and
+    /// the rest return to the front of the queue.
+    pub(crate) fn prepare_request(
+        &mut self,
         game_type: &str,
         players: &[Uuid],
-    ) -> Result<Vec<(Uuid, InventorySnapshot)>, String> {
-        let found = self
-            .store
-            .game_type(game_type)
-            .ok_or_else(|| format!("unknown game type {game_type}"))?;
-        players
+    ) -> Result<Vec<(Uuid, InventorySnapshot)>, Vec<Notice>> {
+        let Some(found) = self.store.game_type(game_type) else {
+            return Err(notices(
+                players.to_vec(),
+                &format!("game type {game_type} was removed, you left its queue"),
+            ));
+        };
+        let resolved: Vec<(Uuid, Option<InventorySnapshot>)> = players
             .iter()
             .map(|player| {
                 let chosen = self
@@ -414,11 +459,103 @@ impl Orchestrator {
                     .choices
                     .get(&(*player, game_type.to_owned()))
                     .map(String::as_str);
-                let kit = kits::resolve(&found.kits, chosen)
-                    .ok_or_else(|| format!("{player} has no kit for {game_type}"))?;
-                Ok((*player, kit.snapshot.clone()))
+                let snapshot = kits::resolve(&found.kits, chosen).map(|kit| kit.snapshot.clone());
+                (*player, snapshot)
             })
-            .collect()
+            .collect();
+        if resolved.iter().all(|(_, snapshot)| snapshot.is_some()) {
+            return Ok(resolved
+                .into_iter()
+                .filter_map(|(player, snapshot)| Some((player, snapshot?)))
+                .collect());
+        }
+        let (without, with): (Vec<_>, Vec<_>) = resolved
+            .into_iter()
+            .partition(|(_, snapshot)| snapshot.is_none());
+        let kept: Vec<Uuid> = with.into_iter().map(|(player, _)| player).collect();
+        self.queues.push_front(game_type, &kept);
+        Err(notices(
+            without.into_iter().map(|(player, _)| player).collect(),
+            &format!("your kit for {game_type} is gone, choose one again; you left the queue"),
+        ))
+    }
+
+    /// Holds a request that was rejected for capacity; the id names it for the retry.
+    pub(crate) fn hold(&mut self, game_type: &str, players: Vec<Uuid>) -> u64 {
+        self.next_pending += 1;
+        self.pending.insert(
+            self.next_pending,
+            Pending {
+                game_type: game_type.to_owned(),
+                players,
+            },
+        );
+        self.next_pending
+    }
+
+    /// A request failed for a reason other than capacity: the players are told and go back to
+    /// the front of the queue.
+    pub(crate) fn refuse(
+        &mut self,
+        game_type: &str,
+        players: Vec<Uuid>,
+        message: &str,
+    ) -> Vec<Notice> {
+        self.queues.push_front(game_type, &players);
+        notices(
+            players,
+            &format!("the match could not start ({message}), you are back in the queue"),
+        )
+    }
+
+    /// Takes a held request for its retry; `None` when it was dropped meanwhile.
+    pub(crate) fn take_pending(&mut self, id: u64) -> Option<Pending> {
+        self.pending.remove(&id)
+    }
+
+    /// `/orchestrator match`: checks an on-behalf request and takes the players out of their
+    /// queues. It bypasses the open/closed switch, not the disabled flag (O8).
+    pub(crate) fn admin_match(
+        &mut self,
+        game_type: &str,
+        players: &[(Uuid, String)],
+    ) -> Result<(), String> {
+        let found = self
+            .store
+            .game_type(game_type)
+            .ok_or_else(|| format!("unknown game type {game_type}"))?;
+        if !found.enabled {
+            return Err(JoinRefusal::Disabled(game_type.to_owned()).to_string());
+        }
+        if usize::try_from(found.players).ok() != Some(players.len()) {
+            return Err(format!(
+                "{game_type} needs exactly {} players",
+                found.players
+            ));
+        }
+        for (index, (player, name)) in players.iter().enumerate() {
+            if players[..index]
+                .iter()
+                .any(|(earlier, _)| earlier == player)
+            {
+                return Err(format!("{name} is listed twice"));
+            }
+            if self.in_match(*player) {
+                return Err(format!("{name} is in a match"));
+            }
+            let chosen = self
+                .store
+                .choices
+                .get(&(*player, game_type.to_owned()))
+                .map(String::as_str);
+            if kits::resolve(&found.kits, chosen).is_none() {
+                return Err(format!("{name} has not chosen a kit for {game_type}"));
+            }
+        }
+        for (player, _) in players {
+            self.queues.leave(*player);
+        }
+        Ok(())
     }
 
     pub(crate) fn remove_kit(&mut self, game_type: &str, kit: &str) -> Result<String, String> {
@@ -708,11 +845,11 @@ mod tests {
         let bob = Uuid { bytes: [2; 16] };
         o.choose_kit(ALICE, "skywars", "knight").unwrap();
         o.choose_kit(bob, "skywars", "archer").unwrap();
-        let request = o.request_players("skywars", &[ALICE, bob]).unwrap();
+        let request = o.prepare_request("skywars", &[ALICE, bob]).unwrap();
         assert_eq!(request[0].1, snapshot);
         assert_ne!(request[1].1, snapshot);
         assert!(
-            o.request_players("skywars", &[Uuid { bytes: [3; 16] }])
+            o.prepare_request("skywars", &[Uuid { bytes: [3; 16] }])
                 .is_err()
         );
     }
@@ -762,6 +899,107 @@ mod tests {
         assert_eq!(
             o.set_players("nope", 2).unwrap_err(),
             "unknown game type nope"
+        );
+    }
+
+    const BOB: Uuid = Uuid { bytes: [2; 16] };
+    const CAROL: Uuid = Uuid { bytes: [3; 16] };
+
+    fn queued(o: &mut Orchestrator, players: &[Uuid]) {
+        for player in players {
+            o.choose_kit(*player, "skywars", "knight").unwrap();
+            o.join(*player, "skywars").unwrap();
+        }
+    }
+
+    #[test]
+    fn a_full_queue_forms_one_request_and_leaves_the_rest() {
+        let mut o = orchestrator("form");
+        queued(&mut o, &[ALICE, BOB, CAROL]);
+        let formed = o.form_requests();
+        assert_eq!(formed.len(), 1);
+        assert_eq!(formed[0].players, vec![ALICE, BOB]);
+        assert!(o.queue_status(CAROL)[0].contains("position 1"));
+    }
+
+    #[test]
+    fn a_player_whose_kit_vanished_is_dropped_and_the_rest_requeue() {
+        let mut o = orchestrator("vanished");
+        queued(&mut o, &[ALICE, BOB]);
+        let formed = o.form_requests().remove(0);
+        o.store.choices.remove(&(BOB, "skywars".to_owned()));
+        let notices = o.prepare_request("skywars", &formed.players).unwrap_err();
+        assert_eq!(
+            notices.iter().map(|notice| notice.to).collect::<Vec<_>>(),
+            [BOB]
+        );
+        assert!(o.queue_status(ALICE)[0].contains("position 1"));
+    }
+
+    #[test]
+    fn a_quit_during_the_capacity_wait_drops_the_request_and_requeues_the_others() {
+        let mut o = orchestrator("pending");
+        let id = o.hold("skywars", vec![ALICE, BOB]);
+        assert_eq!(o.join(ALICE, "skywars"), Err(JoinRefusal::InMatch));
+        let notices = o.quit(BOB);
+        assert_eq!(
+            notices.iter().map(|notice| notice.to).collect::<Vec<_>>(),
+            [ALICE]
+        );
+        assert!(o.take_pending(id).is_none());
+        assert!(o.queue_status(ALICE)[0].contains("queued for skywars"));
+    }
+
+    #[test]
+    fn a_held_request_is_taken_once_for_its_retry() {
+        let mut o = orchestrator("retry");
+        let id = o.hold("skywars", vec![ALICE, BOB]);
+        assert_eq!(
+            o.take_pending(id).map(|held| held.players),
+            Some(vec![ALICE, BOB])
+        );
+        assert!(o.take_pending(id).is_none());
+    }
+
+    #[test]
+    fn on_behalf_matches_need_exact_players_kits_and_an_enabled_game_type() {
+        let mut o = orchestrator("admin");
+        let named = |players: &[Uuid]| -> Vec<(Uuid, String)> {
+            players
+                .iter()
+                .map(|player| (*player, format!("p{}", player.bytes[0])))
+                .collect()
+        };
+        assert_eq!(
+            o.admin_match("skywars", &named(&[ALICE])).unwrap_err(),
+            "skywars needs exactly 2 players"
+        );
+        assert!(
+            o.admin_match("skywars", &named(&[ALICE, BOB]))
+                .unwrap_err()
+                .contains("has not chosen a kit")
+        );
+
+        o.choose_kit(ALICE, "skywars", "knight").unwrap();
+        o.choose_kit(BOB, "skywars", "knight").unwrap();
+        assert!(
+            o.admin_match("skywars", &named(&[ALICE, ALICE]))
+                .unwrap_err()
+                .contains("listed twice")
+        );
+        o.join(ALICE, "skywars").unwrap();
+        o.access.close();
+        assert!(
+            o.admin_match("skywars", &named(&[ALICE, BOB])).is_ok(),
+            "bypasses closed and the queue"
+        );
+        assert!(o.queue_status(ALICE)[0].contains("not queued"));
+
+        o.set_enabled("skywars", false).unwrap();
+        assert!(
+            o.admin_match("skywars", &named(&[ALICE, BOB]))
+                .unwrap_err()
+                .contains("disabled")
         );
     }
 }

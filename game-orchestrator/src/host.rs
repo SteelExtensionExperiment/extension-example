@@ -13,7 +13,7 @@ const NOT_READY: &str = "the game orchestrator is not ready";
 pub(crate) fn install(orchestrator: Orchestrator) -> Result<(), String> {
     STATE
         .set(Mutex::new(orchestrator))
-        .map_err(|_| "the game orchestrator is already initialised".to_owned())
+        .map_err(|_| "the game orchestrator is already initialized".to_owned())
 }
 
 fn lock() -> Result<MutexGuard<'static, Orchestrator>, String> {
@@ -27,7 +27,7 @@ pub(crate) fn with<R>(action: impl FnOnce(&mut Orchestrator) -> R) -> Result<R, 
     Ok(action(&mut *lock()?))
 }
 
-/// Sends legacy-formatted text (`&` colour codes) to an online player; offline players are
+/// Sends legacy-formatted text (`&` color codes) to an online player; offline players are
 /// skipped.
 pub(crate) fn tell(server: &Server<'_>, player: Uuid, message: &str) {
     let Some(id) = Option::from(server.player_by_uuid(player)) else {
