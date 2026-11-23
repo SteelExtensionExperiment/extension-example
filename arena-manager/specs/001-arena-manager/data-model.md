@@ -67,7 +67,7 @@ Preparing ──world ready──▶ Starting ──all players placed──▶ 
 
 ## `arena-manager-api` (draft, deferred O2)
 
-Not published. A first shape, to be reshaped when the game registry and orchestrator contracts are decided:
+Superseded by the published contract in `arena-manager-api` and [contracts/service.md](contracts/service.md).
 
 | Item | Draft shape |
 | --- | --- |

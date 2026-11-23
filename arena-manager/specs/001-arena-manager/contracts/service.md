@@ -1,6 +1,6 @@
 # Contract: service `arena-manager:match/v1`
 
-**Status: decided (O2), kit field pending.** Types live in `arena-manager-api` (sibling crate, `../../../../arena-manager-api/src/lib.rs`). `PlayerEntry` gets a kit field once host spec 007 (item snapshot) provides the type; until then `/v1` is not final and nothing may ship against it. A published contract changes only with the user's approval (`specs/extensions-workflow.md` in the Steel checkout).
+**Status: final (O2 decided, kit field added).** Types live in `arena-manager-api` (sibling crate, `../../../../arena-manager-api/src/lib.rs`). `PlayerEntry { uuid, kit: InventorySnapshot }`: the kit is the host's item snapshot (spec 007, `steel_extension_api::inventory_snapshot`), captured by the caller with `Server::inventory_snapshot`. Arena-manager restores it with `Server::restore_inventory` when it places the player; the snapshot carries the game mode, and the restore fails, leaving the player unchanged, if a game mode change event cancels it. A published contract changes only with the user's approval (`specs/extensions-workflow.md` in the Steel checkout).
 
 Arena-manager provides the service and emits the actions. It does **not** depend on the orchestrator or link its crate. Game types are opaque names.
 
