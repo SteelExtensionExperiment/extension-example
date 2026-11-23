@@ -27,7 +27,7 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 ## Phase 1: Setup
 
 - [ ] T001 [P] Create `world-cloner-api/` with `Cargo.toml` (own `[workspace]`, path dependency `../../steel-extension-api`, lint table copied from `../worldedit-api/Cargo.toml`) and an empty `src/lib.rs`
-- [ ] T002 [P] Create `world-cloner/` with `Cargo.toml` (`[lib] crate-type = ["cdylib", "rlib"]`, dependencies on `../world-cloner-api`, `serde`, `toml`), `extension.toml` (`name = "world-cloner"`, `[targets]` with `libworld_cloner.so` and the other platform names), `clippy.toml`, and `src/lib.rs` with `export_extension!` in the long form declaring `name: "world-cloner"`, `depends: []`
+- [x] T002 [P] Create `world-cloner/` with `Cargo.toml` (`[lib] crate-type = ["cdylib", "rlib"]`, dependencies on `../world-cloner-api`, `serde`, `toml`), `extension.toml` (`name = "world-cloner"`, `[targets]` with `libworld_cloner.so` and the other platform names), `clippy.toml`, and `src/lib.rs` with `export_extension!` in the long form declaring `name: "world-cloner"`, `depends: []`
 
 ---
 
@@ -37,7 +37,7 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 
 **Independent Test**: one valid and one missing template; the server starts, one Ready, one Failed (spec US1).
 
-- [ ] T003 [P] [US1] Add `world-cloner/src/config.rs` (data-model) with parsing and validation per FR-002, and `init` wiring that stores the validated configuration and refuses to start on error. Tests: duplicate names, bad characters, an absolute path, a `..` path, an unknown game mode and a defaulted game mode each give the expected result and a message naming the entry. No host needed.
+- [x] T003 [P] [US1] Add `world-cloner/src/config.rs` (data-model) with parsing and validation per FR-002, and `init` wiring that stores the validated configuration and refuses to start on error. Tests: duplicate names, bad characters, an absolute path, a `..` path, an unknown game mode and a defaulted game mode each give the expected result and a message naming the entry. No host needed.
 - [ ] T004 [US1] Add startup loading in `world-cloner/src/lib.rs` and `src/startup.rs`: on the first server tick call the platform `load_world_template` for each template (host key `world-cloner:<name>`), keep the `Operation`s, poll them on later ticks once, and log each result. **Waits for platform T007 and T012.** Test: key building and the once-only result handling, with the host call behind a small seam so the logic is unit-testable.
 
 **Checkpoint**: US1 works; a server owner can see templates become Ready or Failed.
@@ -65,7 +65,7 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 
 **Independent Test**: run each subcommand with and without permission (spec US3).
 
-- [ ] T009 [US3] Add `world-cloner/src/commands.rs` with `/worldcloner templates|clone|create|remove` ([contracts/commands.md](contracts/commands.md)), template-name suggestions, and the pending-operation reporter that messages the sender with `Server::message` and logs. Tests: syntax, permissions, suggestions, and the report path for success and failure.
+- [ ] T009 [US3] (tree and argument parsing done in `src/commands.rs`, not registered; handlers and reporter blocked on T006-T008) Add `world-cloner/src/commands.rs` with `/worldcloner templates|clone|create|remove` ([contracts/commands.md](contracts/commands.md)), template-name suggestions, and the pending-operation reporter that messages the sender with `Server::message` and logs. Tests: syntax, permissions, suggestions, and the report path for success and failure.
 
 ---
 

@@ -107,6 +107,23 @@ This extension sits in `extension-example/` inside a Steel checkout, as `SteelEx
 | T007 | T015 (`create_world` binding) |
 | T008 | T018 (`remove_world` binding) |
 
+## Platform gap (recorded 2026-11-23)
+
+Checked `steel-extension-api` in the main checkout (`c806993c`): `Operation`, `OperationStatus` and
+`WorldSettings` exist, but `TemplateState`, `CloneTarget`, `CloneSettings` and the template/clone/remove
+bindings (`load_world_template`, `world_template_status`, clone, `create_world`, `remove_world`) do not.
+Host spec 005 is not merged into the main checkout, so the extension cannot compile against them.
+
+| Blocked | Reason |
+| --- | --- |
+| T001, T005 (`world-cloner-api`) | Needs `TemplateState`, `CloneTarget`, `CloneSettings` (platform T012) |
+| T004, T006, T007, T008 | Host bindings (platform T007, T012, T015, T018) |
+| T009 execution | Handlers call the service; only the command tree and argument parsing are built now |
+
+Done without the host: T002 (scaffold), T003 (configuration), T009 tree and parsing (not registered
+until the service exists). Resume at T001 once host 005 is merged and `steel-extension-api` exports
+the template types.
+
 ## Complexity Tracking
 
 Empty.
