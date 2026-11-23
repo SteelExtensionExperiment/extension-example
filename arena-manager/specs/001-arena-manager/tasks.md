@@ -12,7 +12,7 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 
 - **[P]**: can run in parallel (different files, no dependency on an incomplete task)
 - **[Story]**: US1-US5 from spec.md
-- **(deferred)**: waits for O2, the registry/orchestrator contract. Do not start, stub or guess it.
+- **(deferred)**: waits for the match runtime, which needs world-cloner. O2 is decided and the contract is final (`PlayerEntry.kit` landed with host spec 007); do not stub it.
 - Paths relative to `extension-example/`: `arena-manager/` is the extension crate (holding this spec) and `arena-manager-api/` its sibling contract crate, at `SteelExtensionMC/extension-example/`.
 
 ---
@@ -45,7 +45,7 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 
 **Independent Test**: limit 1, start one match (new world), second rejected, after the first ends a third succeeds (spec US2).
 
-- [ ] T009 [US2] (deferred) Match request intake: validate game type and players, reserve an arena, return a rejection or a match id. Needs the registry and orchestrator types (O2).
+- [ ] T009 [US2] (deferred) Match request intake: validate game type and players, reserve an arena, return a rejection or a match id. The reservation (`allocator.rs`) is done; the only success path that cannot run without world-cloner is `NewWorld`, and no world exists to reuse until one is cloned, so intake lands with T010.
 - [ ] T010 [US2] `src/worlds.rs`: clone the game type's template as `arena<n>:map` in a new temporary domain through `world-cloner:clone/v1` (`cloner()` lookup at use time), poll the `Operation`, mark the world ready or fail the match. **Waits for world-cloner T006.** Tests: key and domain counter never reused; failure releases the arena.
 - [ ] T011 [US2] `src/transfer.rs`: per-player steps from research R4 (switch domain, wait ready or timeout, teleport to the slot spawn, game mode, clear inventory, kit items). **Waits for world-cloner T006 and research R4 (teleport timing).** Kit type is **(deferred)**.
 
@@ -55,8 +55,8 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 
 ## Phase 7: User Story 4 - Listing and service (P2)
 
-- [ ] T013 [US4] (deferred) `src/service.rs` and `arena-manager-api`: start match, list matches, result listener, once O2 fixes the contract. Includes the `/arena matches` command.
-- [ ] T014 [US3] (deferred) Deliver one result per finished match to the listener, with the draw state, once O2 is decided.
+- [ ] T013 [US4] (deferred) `src/service.rs` and `arena-manager-api`: start match, list matches, result listener, registered together with T009, since `start_match` is the service's one call that needs a world. Includes the `/arena matches` command.
+- [ ] T014 [US3] (deferred) Deliver one result per finished match to the listener, with the draw state, from the match runtime of T010.
 
 ## Phase 8: Polish
 
@@ -68,9 +68,9 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 ## Dependencies & execution order
 
 - **T001-T007** have no external dependency and can start now (T006 and T007 are pure).
-- **T008** waits for R6. **T010-T012** wait for world-cloner tasks. **T009, T013, T014** wait for O2.
+- **T008** waits for R6. **T010-T012** wait for world-cloner tasks. **T009, T013, T014** wait for the match runtime (T010).
 - **T005** needs T004; **T006** needs T004's model; **T010** needs T006; **T011** needs T007 and T010; **T012** needs T010.
 
 ## Implementation strategy
 
-MVP: T001-T005, then T006-T007 so the rules are tested before any host call. T010-T012 follow when world-cloner lands. The service and results (T009, T013, T014) are designed together with the registry and orchestrator once the user fixes O2. Track host work in `specs/005-world-templates/tasks.md`.
+MVP: T001-T005, then T006-T007 so the rules are tested before any host call. T010-T012 follow when world-cloner lands. The service and results (T009, T013, T014) follow T010; the contract itself is final. Track host work in `specs/005-world-templates/tasks.md`.
