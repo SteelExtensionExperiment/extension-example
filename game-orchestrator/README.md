@@ -2,7 +2,11 @@
 
 Steel extension: Game orchestrator.
 
-**Status:** planning. Nothing is implemented. The spec is in [`specs/001-game-orchestrator/`](specs/001-game-orchestrator/spec.md). The connection to arena-manager and stats-visualizer is not fixed yet (open point O2); cycles are accepted in the plan.
+**Status:** in progress. Game types, queues, access control, kit choice, `/queue`, `/orchestrator`, persistence, and result forwarding (`MatchResult`) work. Spec: [`specs/001-game-orchestrator/`](specs/001-game-orchestrator/spec.md).
+
+**Waiting on other work:**
+- Forming matches from full queues, `kit save|load` and `/orchestrator match` need a kit per player in the match request (host spec 007).
+- Registering signs from their text needs the world of a sign-edit event, which the host does not expose yet. Registered signs already work on click.
 
 ## Layout
 

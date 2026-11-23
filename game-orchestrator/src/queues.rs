@@ -18,6 +18,13 @@ pub(crate) enum Joined {
 }
 
 /// Players taken from the front of one queue for one match request.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "called once start_match can carry a kit per player (host spec 007)"
+    )
+)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Formed<P> {
     pub game_type: String,
@@ -125,6 +132,13 @@ impl<P: Copy + Eq + Hash> Queues<P> {
 
     /// Pops the first N players of every queue that holds at least N, in game type name order.
     /// `players_needed` gives N per game type; `None` or 0 leaves that queue alone.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "called once start_match can carry a kit per player (host spec 007)"
+        )
+    )]
     pub(crate) fn form(
         &mut self,
         players_needed: impl Fn(&str) -> Option<usize>,

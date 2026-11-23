@@ -10,9 +10,23 @@ pub(crate) struct Kit {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "used by `kit save` once the item snapshot of host spec 007 exists"
+    )
+)]
 pub(crate) struct DuplicateKit;
 
 /// Adds `kit`, refusing a name the game type already has.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "used by `kit save` once the item snapshot of host spec 007 exists"
+    )
+)]
 pub(crate) fn add(kits: &mut Vec<Kit>, kit: Kit) -> Result<(), DuplicateKit> {
     if kits.iter().any(|existing| existing.name == kit.name) {
         return Err(DuplicateKit);

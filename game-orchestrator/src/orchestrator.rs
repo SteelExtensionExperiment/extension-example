@@ -14,7 +14,7 @@ use crate::{
     config::Config,
     kits,
     queues::{Joined, Queues},
-    signs::{self, SignKind, SignPos, validate},
+    signs::{SignKind, SignPos, validate},
     store::{GameType, MIN_PLAYERS, Store, StoreError},
 };
 
@@ -41,12 +41,18 @@ fn saved(result: Result<(), StoreError>) -> Result<(), String> {
     result.map_err(|error| format!("cannot save {error}"))
 }
 
+/// A match this orchestrator asked for and has not seen end.
+struct MatchRef {
+    game_type: String,
+    players: Vec<Uuid>,
+}
+
 pub(crate) struct Orchestrator {
     pub store: Store,
     pub config: Config,
     pub access: Access,
     queues: Queues<Uuid>,
-    in_match: HashMap<Uuid, MatchId>,
+    matches: HashMap<MatchId, MatchRef>,
 }
 
 impl Orchestrator {
@@ -57,7 +63,7 @@ impl Orchestrator {
             config,
             access,
             queues: Queues::default(),
-            in_match: HashMap::new(),
+            matches: HashMap::new(),
         }
     }
 
@@ -76,7 +82,7 @@ impl Orchestrator {
             has_valid_kit: kits::resolve(&found.kits, chosen).is_some(),
         });
         self.access
-            .check_join(self.in_match.contains_key(&player), game_type, game)?;
+            .check_join(self.in_match(player), game_type, game)?;
         let needed = self
             .store
             .game_type(game_type)
@@ -95,9 +101,41 @@ impl Orchestrator {
         }
     }
 
-    /// Removes the player from their queue (leave or quit); the game type they left.
+    /// Removes the player from their queue; the game type they left.
     pub(crate) fn leave(&mut self, player: Uuid) -> Option<String> {
         self.queues.leave(player)
+    }
+
+    /// The player disconnected: they leave their queue and are not re-queued if a match fails.
+    pub(crate) fn quit(&mut self, player: Uuid) {
+        self.queues.leave(player);
+        for running in self.matches.values_mut() {
+            running.players.retain(|member| *member != player);
+        }
+    }
+
+    fn in_match(&self, player: Uuid) -> bool {
+        self.matches
+            .values()
+            .any(|running| running.players.contains(&player))
+    }
+
+    /// Records a match accepted by arena-manager.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "called once start_match can carry a kit per player (host spec 007)"
+        )
+    )]
+    pub(crate) fn begin_match(&mut self, id: MatchId, game_type: &str, players: Vec<Uuid>) {
+        self.matches.insert(
+            id,
+            MatchRef {
+                game_type: game_type.to_owned(),
+                players,
+            },
+        );
     }
 
     /// Sets the player's kit for a game type. A queued player keeps their place.
@@ -153,11 +191,21 @@ impl Orchestrator {
         lines
     }
 
-    /// Every player in a result is no longer in a match.
-    pub(crate) fn finish(&mut self, players: impl IntoIterator<Item = Uuid>) {
-        for player in players {
-            self.in_match.remove(&player);
-        }
+    /// A finished match frees its players.
+    pub(crate) fn finish(&mut self, id: MatchId) {
+        self.matches.remove(&id);
+    }
+
+    /// A match failed before it ran: its players are told and re-queued at the front, in order.
+    pub(crate) fn fail(&mut self, id: MatchId, message: &str) -> Vec<Notice> {
+        let Some(failed) = self.matches.remove(&id) else {
+            return Vec::new();
+        };
+        self.queues.push_front(&failed.game_type, &failed.players);
+        notices(
+            failed.players,
+            &format!("the match failed ({message}), you are back in the queue"),
+        )
     }
 
     // --- signs -------------------------------------------------------------------------
@@ -179,6 +227,13 @@ impl Orchestrator {
         Some(result)
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "needs the world of a sign-edit event, which the host does not expose"
+        )
+    )]
     pub(crate) fn register_sign(&mut self, pos: SignPos, kind: SignKind) -> Result<String, String> {
         let id = self.store.signs.register(pos, kind);
         saved(self.store.save_signs())?;
@@ -386,7 +441,7 @@ impl Orchestrator {
         };
         let mut lines = vec![format!("queueing is {state}")];
         lines.extend(self.game_type_lines());
-        lines.push(format!("{} players in matches", self.in_match.len()));
+        lines.push(format!("{} running matches", self.matches.len()));
         lines
     }
 
@@ -568,10 +623,30 @@ mod tests {
     fn a_player_in_a_match_cannot_queue_until_the_result_frees_them() {
         let mut o = orchestrator("match");
         o.choose_kit(ALICE, "skywars", "knight").unwrap();
-        o.in_match.insert(ALICE, 1);
+        o.begin_match(1, "skywars", vec![ALICE]);
         assert_eq!(o.join(ALICE, "skywars"), Err(JoinRefusal::InMatch));
-        o.finish([ALICE]);
+        o.finish(1);
         assert!(o.join(ALICE, "skywars").is_ok());
+    }
+
+    #[test]
+    fn a_failed_match_requeues_the_players_who_stayed_at_the_front() {
+        let mut o = orchestrator("fail");
+        let (bob, carol) = (Uuid { bytes: [2; 16] }, Uuid { bytes: [3; 16] });
+        for player in [ALICE, bob, carol] {
+            o.choose_kit(player, "skywars", "knight").unwrap();
+        }
+        o.begin_match(7, "skywars", vec![ALICE, bob]);
+        o.join(carol, "skywars").unwrap();
+        o.quit(bob);
+        let notices = o.fail(7, "no arena");
+        assert_eq!(
+            notices.iter().map(|notice| notice.to).collect::<Vec<_>>(),
+            [ALICE]
+        );
+        assert_eq!(o.queues.position(ALICE), Some(("skywars", 1)));
+        assert_eq!(o.queues.position(carol), Some(("skywars", 2)));
+        assert_eq!(o.fail(7, "again"), vec![]);
     }
 
     #[test]

@@ -1,5 +1,13 @@
 //! Sign text parsing and the registry of registered signs.
 
+#![cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "needs the world of a sign-edit event, which the host does not expose"
+    )
+)]
+
 use std::fmt;
 
 use crate::kits::Kit;

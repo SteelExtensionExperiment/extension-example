@@ -35,8 +35,8 @@ description: "Task list for the Game Orchestrator extension (queues, kits, signs
 **Independent Test**: create a game type, list it, restart, list it again (spec US3 scenario 4, kits excluded until O1).
 
 - [x] T009 [US3] `src/store.rs`: `gametypes.toml`, `signs.toml`, `choices.toml`, `state.toml` model, load, atomic save, validation per data-model. Tests: round trip, duplicates and bad slots rejected, corrupt file gives a message naming file and cause, missing files start empty.
-- [ ] T010 [US3] `src/commands.rs`: `/queue` and `/orchestrator gametype|open|close|status|queues|sign|kit list` with permission nodes and errors per [contracts/commands.md](contracts/commands.md); `match` is added with T013. Tests: syntax, permissions, error messages, player-only commands.
-- [ ] T011 [US1] `src/lib.rs`: wire join, quit and interact events to the pure modules; session expiry through `scheduler::run_later`; clear queues on close, disable and remove with messages. Tests: handler logic through a small host seam.
+- [x] T010 [US3] (partial: `kit save|load` and `match` not registered, see T008/T013; kit completion only for game types) `src/commands.rs`: `/queue` and `/orchestrator gametype|open|close|status|queues|sign|kit list` with permission nodes and errors per [contracts/commands.md](contracts/commands.md); `match` is added with T013. Tests: syntax, permissions, error messages, player-only commands.
+- [x] T011 [US1] (partial: quit, sign click, session expiry wired; `Queues::form` not called, see T013) `src/lib.rs`: wire join, quit and interact events to the pure modules; session expiry through `scheduler::run_later`; clear queues on close, disable and remove with messages. Tests: handler logic through a small host seam.
 
 ## Phase 4: Kits (P1)
 
@@ -46,7 +46,7 @@ description: "Task list for the Game Orchestrator extension (queues, kits, signs
 ## Phase 5: Matches and results (deferred)
 
 - [ ] T013 [US1][US4] (deferred) `src/arena.rs`: build a request with a kit per player, call arena-manager, handle synchronous rejection (capacity retry through `scheduler::run_repeating` every `retry_interval_ticks`, other causes re-queue at the front), `/orchestrator match`. Needs O2. Tests (pure part): retry and re-queue decisions.
-- [ ] T014 [US6] (deferred) `src/service.rs`: receive arena-manager results, free players, fan out to listeners, provide `game_types`. Needs O2 and the stats-visualizer draw decision (O5).
+- [~] T014 [US6] (done: `MatchFinished`/`MatchFailed` handlers, `MatchResult` re-emit, `games` service; start of matches waits for T013) `src/service.rs`: receive arena-manager results, free players, fan out to listeners, provide `game_types`. Needs O2 and the stats-visualizer draw decision (O5).
 - [ ] T015 [US5] (deferred) `/orchestrator status` running-match listing and `/queue` details that need match data. Needs O2.
 
 ## Phase 6: Polish
