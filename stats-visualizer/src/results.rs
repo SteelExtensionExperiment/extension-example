@@ -5,8 +5,9 @@ use std::sync::Mutex;
 use game_orchestrator_api::{MatchResult, Outcome};
 use steel_extension_api::{Hooks, log, scheduler, stabby};
 
+use crate::boards::{HologramHost, refresh_game_type};
 use crate::game_types::{GameTypes, OrchestratorGames, check_game_type};
-use crate::state::{self, lock};
+use crate::state::{self, BoardList, lock};
 use crate::stats::{MatchOutcome, Participant, Stats};
 
 /// Maps the orchestrator result. A `Draw` participant is ignored: neither a win nor a loss.
@@ -44,6 +45,21 @@ fn record_result(
         .map_err(|error| format!("Rejected {} result: {error}", outcome.game_type))
 }
 
+/// Records a result, then refreshes the boards of its game type. A rejected result refreshes
+/// nothing. Returns every error for the caller to log.
+fn apply_result<S: HologramHost>(
+    source: &impl GameTypes,
+    host: &S,
+    stats: &Mutex<Stats>,
+    boards: &Mutex<BoardList<S::Handle>>,
+    outcome: &MatchOutcome,
+) -> Vec<String> {
+    if let Err(error) = record_result(source, stats, outcome) {
+        return vec![error];
+    }
+    refresh_game_type(boards, stats, &outcome.game_type, host)
+}
+
 #[stabby::export(callback)]
 fn on_match_result(result: &MatchResult) {
     let outcome = to_match_outcome(result);
@@ -54,10 +70,16 @@ fn on_match_result(result: &MatchResult) {
             log::error("Dropped a match result: stats visualizer is not initialized");
             return;
         };
-        if let Err(error) = record_result(&OrchestratorGames(*server), &state.stats, &outcome) {
+        let errors = apply_result(
+            &OrchestratorGames(*server),
+            server,
+            &state.stats,
+            &state.boards,
+            &outcome,
+        );
+        for error in errors {
             log::error(error);
         }
-        // Refreshing the boards of this game type hooks in here once boards exist (T006).
     });
 }
 
@@ -78,6 +100,8 @@ mod tests {
     use steel_extension_api::stabby::{string::String as ApiString, vec::Vec as ApiVec};
 
     use super::*;
+    use crate::boards::Board;
+    use crate::boards::tests::{Call, FakeHost, record};
     use crate::game_types::tests::FakeGames;
 
     fn uuid(n: u8) -> Uuid {
@@ -149,5 +173,47 @@ mod tests {
         let error = record_result(&source, &stats, &outcome).unwrap_err();
         assert!(error.contains("more than once"), "{error}");
         assert!(lock(&stats).players().is_empty());
+    }
+
+    fn two_boards() -> Mutex<BoardList<u32>> {
+        Mutex::new(BoardList {
+            boards: vec![
+                Board::new(record("a", "bedwars")),
+                Board::new(record("b", "spleef")),
+            ],
+            dirty: false,
+        })
+    }
+
+    #[test]
+    fn accepted_result_refreshes_only_its_game_types_boards() {
+        let host = FakeHost::default();
+        let stats = Mutex::new(Stats::default());
+        let errors = apply_result(
+            &FakeGames(Some(vec!["bedwars", "spleef"])),
+            &host,
+            &stats,
+            &two_boards(),
+            &bedwars_win(1),
+        );
+        assert_eq!(errors, Vec::<String>::new());
+        let calls = host.calls.borrow();
+        assert_eq!(calls.len(), 1);
+        assert!(matches!(&calls[0], Call::Create(_, text) if text.contains("#1 p1")));
+    }
+
+    #[test]
+    fn rejected_result_refreshes_nothing() {
+        let host = FakeHost::default();
+        let stats = Mutex::new(Stats::default());
+        let errors = apply_result(
+            &FakeGames(Some(vec!["spleef"])),
+            &host,
+            &stats,
+            &two_boards(),
+            &bedwars_win(1),
+        );
+        assert_eq!(errors.len(), 1);
+        assert!(host.calls.borrow().is_empty());
     }
 }

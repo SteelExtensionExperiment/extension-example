@@ -46,7 +46,7 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 **Independent Test**: record results for six players, place a board, read its lines (spec US1).
 
-- [ ] T006 [US1] Add `src/boards.rs`: `Board`, text rendering from ranking lines (title, `#rank Name wins W/L`, empty "no wins yet" line), create, update and remove through the host hologram bindings behind a trait, and `last_lines` to skip unchanged refreshes (FR-005). **Waits for spec 006 T007 (create, update, remove bindings).** Tests with a fake hologram host: rendering of full, partial and empty rankings; an unchanged ranking makes no host call; a changed one makes exactly one update; creation failure keeps the board saved and inactive.
+- [x] T006 [US1] Add `src/boards.rs`: `Board`, text rendering from ranking lines (title, `#rank Name wins W/L`, empty "no wins yet" line), create, update and remove through the host hologram bindings behind a trait, and `last_lines` to skip unchanged refreshes (FR-005). **Waits for spec 006 T007 (create, update, remove bindings).** Tests with a fake hologram host: rendering of full, partial and empty rankings; an unchanged ranking makes no host call; a changed one makes exactly one update; creation failure keeps the board saved and inactive.
 
 **Checkpoint**: a board renders and updates from stored stats.
 

@@ -5,15 +5,37 @@
 
 use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
 
+use steel_extension_api::runtime::HologramId;
+
+use crate::boards::Board;
 use crate::stats::Stats;
 use crate::storage::{BoardRecord, Storage};
 
-/// Boards as stored on disk. The runtime `Board` with its hologram handle (T006) replaces
-/// `records` here.
-#[derive(Debug, Default)]
-pub struct BoardList {
-    pub records: Vec<BoardRecord>,
+/// The runtime boards and whether the saved list differs from them.
+#[derive(Debug)]
+pub struct BoardList<H = HologramId> {
+    pub boards: Vec<Board<H>>,
     pub dirty: bool,
+}
+
+impl<H: Copy> BoardList<H> {
+    /// Loaded records become inactive boards: no hologram until the first refresh.
+    #[must_use]
+    pub fn from_records(records: Vec<BoardRecord>) -> Self {
+        Self {
+            boards: records.into_iter().map(Board::new).collect(),
+            dirty: false,
+        }
+    }
+
+    /// The stored form of every board.
+    #[must_use]
+    pub fn records(&self) -> Vec<BoardRecord> {
+        self.boards
+            .iter()
+            .map(|board| board.record.clone())
+            .collect()
+    }
 }
 
 /// Where the data files are written; a trait so the save decision is testable without disk.
@@ -62,7 +84,7 @@ pub fn save_changed<S: DataStore>(
     }
     let mut boards = lock(boards);
     if force || boards.dirty {
-        match store.save_boards(&boards.records) {
+        match store.save_boards(&boards.records()) {
             Ok(()) => boards.dirty = false,
             Err(error) => errors.push(error),
         }
@@ -89,10 +111,7 @@ impl State {
             .set(Self {
                 storage,
                 stats: Mutex::new(stats),
-                boards: Mutex::new(BoardList {
-                    records: boards,
-                    dirty: false,
-                }),
+                boards: Mutex::new(BoardList::from_records(boards)),
             })
             .map_err(|_| "stats-visualizer initialized twice".to_owned())
     }
@@ -166,7 +185,7 @@ mod tests {
 
     fn board_list(dirty: bool) -> Mutex<BoardList> {
         Mutex::new(BoardList {
-            records: vec![],
+            boards: vec![],
             dirty,
         })
     }

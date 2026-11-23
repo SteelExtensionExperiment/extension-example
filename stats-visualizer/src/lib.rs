@@ -2,6 +2,7 @@
 //! as leaderboards.
 #![recursion_limit = "256"]
 
+mod boards;
 mod config;
 mod game_types;
 mod ranking;
