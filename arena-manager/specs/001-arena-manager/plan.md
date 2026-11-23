@@ -107,3 +107,25 @@ T001-T007 need none of these.
 ## Complexity Tracking
 
 Empty.
+
+## Decisions and status (2026-11-24, relayed by the coordinator session)
+
+Implemented and unit tested: T001-T007, T015.
+
+Decisions:
+
+- **Dead players (R6):** the host refuses a world change while the player is dead (`steel-core/src/server/world_changes.rs:380`, "cannot change worlds while dead"). A death marks the player Lost at once. The move to the lobby happens in the `RespawnEvent` handler with `select_world` (lobby world key) then `teleport_to`. If `RespawnEvent` does not fire in a state where the player can be moved, record a host gap (next free spec number 008) and stop; do not work around it.
+- **Tick rate:** `const TICKS_PER_SECOND: u32 = 20`, private to the extension, as in spleef. The host exposes none. `matches::Match::new` takes it as an argument.
+- **Draw:** neither win nor loss for statistics; stats ignores it. A death and a quit in the same drained batch resolve as Draw for the death and Lost for the quit.
+- **T008 is on hold** until world-cloner T010 lands, so death handling can be tested end to end against a real match.
+- `MatchFinished` is emitted when the winner countdown ends, together with the arena release.
+- The allocator reuses only Ready worlds; worlds being created count toward `max_worlds`.
+
+Remaining blockers:
+
+| Tasks | Waits for |
+| --- | --- |
+| T008, T010-T012 | `world-cloner-api` and the world-cloner service (host spec 005 T012 and T018). The `world-cloner-api` path dependency is not in `Cargo.toml` yet. |
+| T009, T013, T014 | `PlayerEntry.kit`: host spec 007 bindings are committed on `host/007-item-snapshot` (`InventorySnapshot`, `Server::inventory_snapshot`, `Server::restore_inventory`) but not merged into the main checkout. |
+| T016 | The manual check in `quickstart.md` needs the above; native test location (O1) is still open. |
+| `/arena remove` in-use check, `/arena matches` | Match runtime (T009/T010). |
