@@ -1,0 +1,11 @@
+[package]
+name = "arena-manager"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libarena_manager.so"
+linux-aarch64 = "libarena_manager.so"
+macos-x86_64 = "libarena_manager.dylib"
+macos-aarch64 = "libarena_manager.dylib"
+windows-x86_64 = "arena_manager.dll"
+windows-aarch64 = "arena_manager.dll"
