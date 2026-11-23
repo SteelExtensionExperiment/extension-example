@@ -1,11 +1,11 @@
 use steel_extension_api::{
     ApiResult, BlockPos, BlockState, Position, Registry, World,
     block_behavior::{
-        BlockBehavior, InteractionResult, OriginalBlockBehavior,
+        BlockBehavior, DynBlockBehavior, InteractionResult, OriginalBlockBehavior,
         types::{BlockHit, Inventory, Player},
     },
     content::{BlockDefinition, BlockItemDefinition, BlockProperties, HorizontalPlacement},
-    stabby::{self, string::String as ApiString},
+    stabby,
 };
 
 use super::model;
@@ -48,14 +48,12 @@ pub(crate) fn definition() -> BlockItemDefinition {
 }
 
 #[stabby::export(callback)]
-pub(crate) fn register_behavior(mut registry: Registry<'_>) -> ApiResult<()> {
-    let result = (|| -> Result<(), ApiString> {
-        let original = OriginalBlockBehavior::get(&registry, KEY.into()).match_owned(Ok, Err)?;
-        registry
-            .replace_block_behavior(KEY.into(), stabby::boxed::Box::new(Chair(original)).into())
-            .match_owned(Ok, Err)
-    })();
-    result.into()
+pub(crate) fn create_behavior(
+    _registry: Registry<'_>,
+    _state: BlockState,
+    original: OriginalBlockBehavior,
+) -> ApiResult<DynBlockBehavior> {
+    Ok(stabby::boxed::Box::new(Chair(original)).into()).into()
 }
 
 struct Chair(OriginalBlockBehavior);

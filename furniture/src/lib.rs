@@ -13,22 +13,14 @@ use steel_extension_api::{
 };
 
 fn pre_init(mut hooks: Hooks<'_>) -> ApiResult<()> {
-    let result = (|| -> Result<(), ApiString> {
-        hooks
-            .register_content_registration(register_content)
-            .match_owned(Ok, Err)?;
-        hooks
-            .register_block_registration(chair::register_behavior)
-            .match_owned(Ok, Err)
-    })();
-    result.into()
+    hooks.register_content_registration(register_content)
 }
 
 #[stabby::export(callback)]
 fn register_content(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
     let result = (|| -> Result<(), ApiString> {
         registry
-            .register_block_item(chair::definition())
+            .register_block_item_with_behavior(chair::definition(), chair::create_behavior)
             .match_owned(Ok, Err)?;
         vertical_slab::register(&mut registry)?;
         registry

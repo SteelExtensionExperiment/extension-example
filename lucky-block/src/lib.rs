@@ -5,8 +5,8 @@ mod config;
 mod outcomes;
 
 use steel_extension_api::{
-    ApiResult, ExtensionContext, Hooks, Registry,
-    block_behavior::OriginalBlockBehavior,
+    ApiResult, BlockState, ExtensionContext, Hooks, Registry,
+    block_behavior::{DynBlockBehavior, OriginalBlockBehavior},
     content::{
         BlockDefinition, BlockItemDefinition, BlockProperties, ContentRegistry, ItemAppearance,
         ItemDefinition,
@@ -20,15 +20,7 @@ const MATERIAL: &str = "minecraft:oak_planks";
 const FALLBACK_SKIN: &str = "519d28a8632fa4d87ca199bbc2e88cf368dedd55747017ae34843569f7a634c5";
 
 fn pre_init(mut hooks: Hooks<'_>) -> ApiResult<()> {
-    hooks
-        .register_content_registration(register_content)
-        .match_owned(Ok, Err)
-        .and_then(|()| {
-            hooks
-                .register_block_registration(register_behavior)
-                .match_owned(Ok, Err)
-        })
-        .into()
+    hooks.register_content_registration(register_content)
 }
 
 #[stabby::export(callback)]
@@ -38,7 +30,7 @@ fn register_content(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
             .register_head_fallback(KEY.into(), FALLBACK_SKIN.into())
             .match_owned(Ok, Err)?;
         registry
-            .register_block_item(
+            .register_block_item_with_behavior(
                 BlockItemDefinition {
                     block: BlockDefinition::new(KEY)
                         .properties(BlockProperties::of_full_copy(MATERIAL)),
@@ -51,6 +43,7 @@ fn register_content(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
                     drop_self: false,
                 }
                 .with_cube_model(KEY),
+                create_behavior,
             )
             .match_owned(|_| Ok(()), Err)
     })();
@@ -58,14 +51,15 @@ fn register_content(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
 }
 
 #[stabby::export(callback)]
-fn register_behavior(mut registry: Registry<'_>) -> ApiResult<()> {
-    let result = (|| -> Result<(), ApiString> {
+fn create_behavior(
+    registry: Registry<'_>,
+    _state: BlockState,
+    original: OriginalBlockBehavior,
+) -> ApiResult<DynBlockBehavior> {
+    let result = (|| -> Result<DynBlockBehavior, ApiString> {
         let seed = config::parse_seed(registry.config().as_str())?;
-        let original = OriginalBlockBehavior::get(&registry, KEY.into()).match_owned(Ok, Err)?;
         let behavior = outcomes::LuckyBlock::new(original, seed)?;
-        registry
-            .replace_block_behavior(KEY.into(), stabby::boxed::Box::new(behavior).into())
-            .match_owned(Ok, Err)
+        Ok(stabby::boxed::Box::new(behavior).into())
     })();
     result.into()
 }
