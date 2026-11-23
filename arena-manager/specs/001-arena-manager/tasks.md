@@ -19,23 +19,23 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Create `arena-manager-api/` with `Cargo.toml` (own `[workspace]`, path dependency `../../steel-extension-api`, lint table from `../worldedit-api/Cargo.toml`) and an empty `src/lib.rs`
-- [ ] T002 [P] Create `arena-manager/` with `Cargo.toml` (`cdylib` and `rlib`; dependencies `../arena-manager-api`, `../world-cloner-api`, `serde`, `toml`), `extension.toml`, `clippy.toml`, and `src/lib.rs` with `export_extension!` in the long form, `name: "arena-manager"`, `depends: ["world-cloner"]`
+- [x] T001 [P] Create `arena-manager-api/` with `Cargo.toml` (own `[workspace]`, path dependency `../../steel-extension-api`, lint table from `../worldedit-api/Cargo.toml`) and an empty `src/lib.rs`
+- [x] T002 [P] Create `arena-manager/` with `Cargo.toml` (`cdylib` and `rlib`; dependencies `../arena-manager-api`, `../world-cloner-api`, `serde`, `toml`), `extension.toml`, `clippy.toml`, and `src/lib.rs` with `export_extension!` in the long form, `name: "arena-manager"`, `depends: ["world-cloner"]`
 
 ## Phase 2: User Story 1 - Arenas by command (P1) 🎯 MVP
 
 **Independent Test**: create an arena, set two spawns, list, restart, list (spec US1).
 
-- [ ] T003 [P] [US1] `src/config.rs`: parse and validate `config.toml` (`max_worlds` at least 1, delays positive). Tests: defaults, each invalid value gives a message naming the key.
-- [ ] T004 [US1] `src/store.rs`: arena and lobby model, completeness (contiguous 1..N, N at least 2), load and write-then-rename save of `arenas.toml`, validation per data-model. Tests: round trip, duplicate names and slots rejected, gap makes an arena incomplete, corrupt file gives a message naming file and cause.
-- [ ] T005 [US1] `src/commands.rs`: `/arena create|remove|spawn set|spawn remove|spawn list|template|list|lobby set` with per-node permissions ([contracts/commands.md](contracts/commands.md)). Tests: syntax, permissions, errors. Game type validation against the registry is **(deferred)**; until then names are checked against saved game types only.
+- [x] T003 [P] [US1] `src/config.rs`: parse and validate `config.toml` (`max_worlds` at least 1, delays positive). Tests: defaults, each invalid value gives a message naming the key.
+- [x] T004 [US1] `src/store.rs`: arena and lobby model, completeness (contiguous 1..N, N at least 2), load and write-then-rename save of `arenas.toml`, validation per data-model. Tests: round trip, duplicate names and slots rejected, gap makes an arena incomplete, corrupt file gives a message naming file and cause.
+- [x] T005 [US1] `src/commands.rs`: `/arena create|remove|spawn set|spawn remove|spawn list|template|list|lobby set` with per-node permissions ([contracts/commands.md](contracts/commands.md)). Tests: syntax, permissions, errors. Game type validation against the registry is **(deferred)**; until then names are checked against saved game types only.
 
 **Checkpoint**: an administrator defines arenas that survive a restart.
 
 ## Phase 3: Match rules (pure logic, P1)
 
-- [ ] T006 [P] [US2] `src/allocator.rs`: choose a free complete arena with slot count equal to the player count in an existing ready world; otherwise decide to create a world if `worlds < max_worlds` (worlds being created count), else reject with "no capacity". Tests: free arena reused, cap respected, two requests for the last arena (only one wins), incomplete arena ignored, slot-count mismatch.
-- [ ] T007 [P] [US3] `src/matches.rs`: match state machine ([data-model.md](data-model.md)). Inputs: placed, death, quit, tick. Outputs: outcomes. Tests: one death in two players ends with won and lost; simultaneous death in one drained batch is a draw; quit counts as a loss; three players, last standing wins; death before Running cancels (O9); winner countdown length and the point at which the arena is released.
+- [x] T006 [P] [US2] `src/allocator.rs`: choose a free complete arena with slot count equal to the player count in an existing ready world; otherwise decide to create a world if `worlds < max_worlds` (worlds being created count), else reject with "no capacity". Tests: free arena reused, cap respected, two requests for the last arena (only one wins), incomplete arena ignored, slot-count mismatch.
+- [x] T007 [P] [US3] `src/matches.rs`: match state machine ([data-model.md](data-model.md)). Inputs: placed, death, quit, tick. Outputs: outcomes. Tests: one death in two players ends with won and lost; simultaneous death in one drained batch is a draw; quit counts as a loss; three players, last standing wins; death before Running cancels (O9); winner countdown length and the point at which the arena is released.
 
 ## Phase 4: User Story 3 - Deaths and return (P1)
 
