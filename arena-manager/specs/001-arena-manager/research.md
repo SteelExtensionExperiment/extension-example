@@ -35,7 +35,7 @@ File:line references are relative to the Steel checkout (`SteelExtensionMC/`), c
 - A dependency cycle is an error even when one edge is soft (`host/lifecycle.rs:366-368`), and registrations cannot be rolled back (`host/mod.rs:393`).
 - Dependencies are declared in the long `export_extension!` form, not `extension.toml` (`steel-extension-api/src/lib.rs:221-264`, `host/package.rs:15-26`).
 
-**Decision.** Arena-manager `depends: ["world-cloner"]` and, once the registry contract exists, `depends: ["game-registry"]`. It never depends on the orchestrator. The orchestrator looks up arena-manager's service lazily or declares a dependency on it; either is its own choice. **The shape of all three contracts is deferred (O2).**
+**Decision.** Arena-manager `depends: ["world-cloner"]`. It never depends on the orchestrator; the orchestrator `depends: ["arena-manager"]`. Results use hook actions, which need no dependency and cannot form a cycle. Emit actions after dropping own locks.
 
 ## R4. Moving a player into a match
 
@@ -81,7 +81,7 @@ Same situation as world-cloner research R2: the native harness is a test module 
 
 ## R11. Risks and open points
 
-1. **O2**: the three-way contract is unfixed; tasks marked deferred cannot start.
+1. **O2**: decided (actions); the kit field waits for host spec 007.
 2. **R6**: moving dead players may need a host change.
 3. **R4**: teleport timing after a domain switch.
 4. **R7**: domain destruction mechanics.

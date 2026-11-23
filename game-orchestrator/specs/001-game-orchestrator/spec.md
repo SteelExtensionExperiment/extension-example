@@ -23,7 +23,7 @@ Decisions taken before writing (asked of the user, rounds 1-2, plus the restated
 | D9 | **Access control**: a global open/closed switch, a per-game-type enable/disable switch, and an administrator command that **requests a match on behalf of named players**. |
 | D10 | **Tournament session**: the administrator can open queueing for a number of hours; it closes by itself. Running matches finish. |
 | D11 | **Queue status command** for players (own queue, position, kit) and for administrators (all queues). |
-| D12 | **Cross-extension dependencies may be cyclic in this plan.** The orchestrator and arena-manager need each other (start-match requests one way, results the other). How they are connected is a future decision (O2); it does not block this spec. |
+| D12 | **Cross-extension dependencies are acyclic.** The orchestrator `depends: ["arena-manager"]` and calls its service; it listens to arena-manager's `MatchFinished`/`MatchFailed` actions (no dependency needed) and re-emits `MatchResult` for stats-visualizer (O2, decided). |
 
 **Not in scope now** (the user: "maybe more comes later, but for now that should be everything"): brackets,
 rounds, Elo or rankings, teams or parties, spectators, scheduled tournaments, persisting queues or matches,
@@ -205,8 +205,8 @@ including stats-visualizer, and frees the players to queue again.
 - **A3**: this extension sits at `SteelExtensionMC/extension-example/game-orchestrator/`, so `../../steel-extension-api` resolves.
 - **A4**: Kits only need what the host can read and write per slot today, unless O1 is decided otherwise.
 - **A5**: Out of scope: brackets, rounds, Elo, teams, parties, spectators, scheduled tournaments, queue persistence, hot reload of the configuration.
-- **O1 (open, blocks kits)**: the extension API's item snapshot is **lossy** (research R1): potions, enchanted-book enchantments, custom model data, attribute modifiers, banners, firework and similar components are lost, so a kit of such items would not equal the administrator's inventory. Options: accept the loss, or specify a host item-snapshot capability as host spec 007. Needs the user's decision.
-- **O2 (open, user decides later)**: how the orchestrator, arena-manager and stats-visualizer connect: cyclic dependency (D12), the `game-registry` split from arena-manager D9, service shapes, per-player kit in the start request, result delivery and the draw state.
+- **O1 (open, blocks kits)**: the extension API's item snapshot is **lossy** (research R1): potions, enchanted-book enchantments, custom model data, attribute modifiers, banners, firework and similar components are lost, so a kit of such items would not equal the administrator's inventory. **Decided:** a host item-snapshot capability, host spec 007; kit save/load waits for it.
+- **O2 (decided)**: no cycle, no `game-registry`; services down, hook actions up (`specs/extension-communication.md`). A draw counting as neither win nor loss is proposed (confirm). Kit per player in the start request waits for host spec 007.
 - **O3 (confirm)**: how config and commands relate. Proposed: one persisted `gametypes.toml` that both commands write and an administrator may edit while the server is stopped; `config.toml` holds only global settings; no hot reload.
 - **O4 (confirm)**: `kit load` replaces the administrator's inventory without a confirmation prompt, after a one-line warning in the reply.
 - **O5 (confirm)**: results carry won, lost or draw; arena-manager already has three states, stats-visualizer's proposal has `won: bool`. A draw counts as neither (proposed).

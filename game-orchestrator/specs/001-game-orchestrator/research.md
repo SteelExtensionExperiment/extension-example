@@ -28,7 +28,7 @@ Findings verified on 2026-11-23 against the Steel checkout. `minecraft-src/` is 
 
 ## R5. Service pattern
 
-`steel-extension-api/src/services.rs:78-109` (`register`, `get`, `providers`) is the pattern the contract will use; dependencies are declared in the long `export_extension!` form (`specs/extensions-workflow.md`, cross-extension contracts). Host rejects dependency cycles, soft ones included (`steel-extension-api/src/host/lifecycle.rs:366-368`, as recorded in arena-manager D9). The user accepts cycles in the plan and will decide the connection later (D12, O2).
+`steel-extension-api/src/services.rs:78-109` (`register`, `get`, `providers`) is the pattern the contract will use; dependencies are declared in the long `export_extension!` form (`specs/extensions-workflow.md`, cross-extension contracts). Host rejects dependency cycles, soft ones included (`steel-extension-api/src/host/lifecycle.rs:366-368`, as recorded in arena-manager D9). Decided (D12, O2): no cycle; results travel as hook actions, which need no dependency.
 
 ## R6. Scheduler
 

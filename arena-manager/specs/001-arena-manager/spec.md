@@ -20,12 +20,12 @@ Decisions taken before writing (asked of the user, rounds 1-3):
 | D6 | **Disconnect counts as a loss. Simultaneous death is a draw** (no winner), so a result has three outcomes: won, lost, draw. |
 | D7 | **World limit** is configured. When it is reached and every arena is busy, a request is rejected at once; the game orchestrator queues and retries. Arena-manager has no queue. |
 | D8 | **Cleanup:** a world with no running match is removed, then its emptied domain. |
-| D9 | **Cross-extension dependency:** arena-manager and the game orchestrator cannot depend on each other (host rejects cycles, even soft ones: `steel-extension-api/src/host/lifecycle.rs:366-368`). A separate `game-registry` extension, in the `game-orchestrator` extension directory, is the one both depend on. Arena-manager provides the start-match and list service and a result listener. |
+| D9 | **Cross-extension dependency:** no `game-registry`. Arena-manager `depends: ["world-cloner"]` and never depends on the orchestrator. The orchestrator calls arena-manager's `arena-manager:match/v1` service; results travel back as the `MatchFinished` / `MatchFailed` hook actions defined in `arena-manager-api`, so no cycle exists. Game types are opaque names here and kits arrive per player in the start request. |
 
-**The communication between arena-manager, the game registry and the game orchestrator (service shapes,
-game type and kit types, how results are delivered, how game types are listed) is not fixed. The user will
-work on it later.** Requirements below that depend on it are marked **(deferred)** and recorded as open
-point O2. Nothing in [contracts/service.md](contracts/service.md) is published.
+**Communication (O2, decided):** calls go down through the service `arena-manager:match/v1`; results go up
+through hook actions (`specs/extension-communication.md` in the Steel checkout). The kit field of
+`PlayerEntry` waits for host spec 007 (item snapshot), so the contract is final only after it.
+Requirements marked **(deferred)** wait for that field or for host spec 005.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -172,7 +172,7 @@ players with their alive status.
 - **A3**: kits and game types are provided by the orchestrator side (D4, D9); arena-manager stores none.
 - **A4**: Out of scope: queueing (D7), kit storage, statistics, teams, spectators, rematches, hot reload of the configuration, persisting matches.
 - **O1 (open)**: where the extension's native integration test lives (as in world-cloner O1).
-- **O2 (open, user will decide later)**: the contract between arena-manager, `game-registry` and the game orchestrator: game type list and type, kit type, `start_match` and listing shapes, result delivery and the draw state. Until fixed, tasks marked deferred cannot start.
+- **O2 (decided)**: no `game-registry`; service `arena-manager:match/v1` plus actions `MatchFinished`/`MatchFailed`; `Outcome` is `Won | Lost | Draw`; draw handling for statistics is proposed as neither win nor loss (confirm). Still open: the kit field (host spec 007).
 - **O3 (open)**: how a dead player is moved out of the respawn screen (research R6); may need a host change.
 - **O4 (confirm)**: one new temporary domain per cloned world (D2 keeps all arenas of a game type in one world).
 - **O5 (confirm)**: a request is matched to an arena whose slot count equals the number of players.
