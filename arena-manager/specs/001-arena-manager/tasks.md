@@ -60,7 +60,7 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 
 ## Phase 8: Polish
 
-- [ ] T015 [P] `README.md` for both crates: layout, configuration, commands, caller rules (poll world-cloner operations; arena-manager's own service is documented once O2 is decided).
+- [x] T015 [P] `README.md` for both crates: layout, configuration, commands, caller rules (poll world-cloner operations; arena-manager's own service is documented once O2 is decided).
 - [ ] T016 [P] `cargo clippy`, `cargo fmt --check`, `typos`, the manual check in [quickstart.md](quickstart.md). Decide O1 and add a native test if the decision calls for one.
 
 ---
