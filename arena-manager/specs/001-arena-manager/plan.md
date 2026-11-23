@@ -126,6 +126,6 @@ Remaining blockers:
 | Tasks | Waits for |
 | --- | --- |
 | T008, T010-T012 | `world-cloner-api` and the world-cloner service (host spec 005 T012 and T018). The `world-cloner-api` path dependency is not in `Cargo.toml` yet. |
-| T009, T013, T014 | `PlayerEntry.kit`: host spec 007 bindings are committed on `host/007-item-snapshot` (`InventorySnapshot`, `Server::inventory_snapshot`, `Server::restore_inventory`) but not merged into the main checkout. |
+| T009, T013, T014 (the parts that create a world) | `world-cloner-api`. The kit field is done: `PlayerEntry.kit: InventorySnapshot` (host spec 007, merged), so `arena-manager:match/v1` is final. |
 | T016 | The manual check in `quickstart.md` needs the above; native test location (O1) is still open. |
 | `/arena remove` in-use check, `/arena matches` | Match runtime (T009/T010). |

@@ -7,13 +7,15 @@
 //! Emit an action only after releasing every lock the emitter holds: dispatch is synchronous and a
 //! listener may call back into [`Matches::start_match`].
 //!
-//! `PlayerEntry` carries no kit yet. The kit field is added together with the item snapshot of
-//! host spec 007, so `/v1` is not final until then.
+//! Each [`PlayerEntry`] carries the kit as an [`InventorySnapshot`] (host spec 007): arena-manager
+//! restores it with `Server::restore_inventory` when the player is placed, which also applies the
+//! snapshot's game mode. It stores no kits.
 #![recursion_limit = "256"]
 
 use steel_extension_api::{
     ApiResult, Server,
     hooks::Action,
+    inventory_snapshot::InventorySnapshot,
     players::Uuid,
     services,
     stabby::{self, str::Str, string::String as ApiString, vec::Vec as ApiVec},
@@ -44,6 +46,9 @@ pub enum Outcome {
 pub struct PlayerEntry {
     /// Profile UUID.
     pub uuid: Uuid,
+    /// Inventory and game mode the player receives on arrival, captured with
+    /// `Server::inventory_snapshot`.
+    pub kit: InventorySnapshot,
 }
 
 /// Request to start one match.
