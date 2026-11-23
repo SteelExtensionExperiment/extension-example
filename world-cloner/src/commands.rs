@@ -334,6 +334,58 @@ pub fn start_clone<H: HostWorlds>(
     Ok(OperationKind::Clone.progress(key))
 }
 
+/// `/worldcloner create`: starts the creation with the configured `[create]` settings and tracks
+/// it for reporting. Returns the immediate feedback.
+///
+/// # Errors
+/// The host's immediate refusal, unchanged.
+pub fn start_create<H: HostWorlds>(
+    host: &H,
+    cloner: &Cloner,
+    reporter: &mut Reporter<H>,
+    generator: &str,
+    key: &str,
+    target: TargetKind,
+    sender: Option<H::Player>,
+) -> Result<String, String> {
+    let operation =
+        cloner.create_world(host, cloner.create_request(generator, key, target.into()))?;
+    reporter.track(PendingOperation {
+        operation,
+        kind: OperationKind::Create,
+        key: key.to_owned(),
+        reply_to: sender,
+    });
+    Ok(OperationKind::Create.progress(key))
+}
+
+/// Runs a parsed [`Request`] and returns the immediate feedback.
+///
+/// # Errors
+/// The refusal of the called operation, unchanged.
+pub fn execute<H: HostWorlds>(
+    host: &H,
+    cloner: &Cloner,
+    reporter: &mut Reporter<H>,
+    request: Request,
+    sender: Option<H::Player>,
+) -> Result<String, String> {
+    match request {
+        Request::Templates => Ok(list_templates(host, cloner)),
+        Request::Clone {
+            template,
+            key,
+            target,
+        } => start_clone(host, cloner, reporter, &template, &key, target, sender),
+        Request::Create {
+            generator,
+            key,
+            target,
+        } => start_create(host, cloner, reporter, &generator, &key, target, sender),
+        Request::Remove { key } => start_remove(host, cloner, reporter, &key, sender),
+    }
+}
+
 /// `/worldcloner remove`: starts the removal and tracks it for reporting. Returns the immediate
 /// feedback.
 ///
@@ -590,6 +642,118 @@ mod tests {
             assert_eq!(removed, Err("not removable".to_owned()));
             assert_eq!(reporter.poll(&host), Vec::<String>::new());
             assert!(host.polls.borrow().is_empty());
+        }
+
+        #[test]
+        fn create_tracks_and_passes_the_configured_settings() {
+            let toml = "[create]\nseed = 7\nspawn = [1, 2, 3]\n\
+                        default_game_mode = \"spectator\"\ndifficulty = \"peaceful\"\n";
+            let cloner = Cloner::new(Config::parse(toml).unwrap(), PathBuf::new());
+            let (host, mut reporter) = (host(), Reporter::new());
+            let feedback = start_create(
+                &host,
+                &cloner,
+                &mut reporter,
+                "example:strange",
+                "g:m",
+                TargetKind::New,
+                Some(4),
+            );
+            assert_eq!(feedback, Ok("Creating world `g:m`...".to_owned()));
+            let calls = host.calls.borrow();
+            let [
+                Call::Create {
+                    key,
+                    generator,
+                    target,
+                    settings,
+                },
+            ] = calls.as_slice()
+            else {
+                panic!("expected one create call, got {calls:?}");
+            };
+            assert_eq!(
+                (key.as_str(), generator.as_str()),
+                ("g:m", "example:strange")
+            );
+            assert_eq!(*target, CloneTarget::NewTemporaryDomain);
+            assert_eq!(
+                (
+                    settings.seed,
+                    settings.spawn.x,
+                    settings.spawn.y,
+                    settings.spawn.z
+                ),
+                (7, 1, 2, 3)
+            );
+            assert!(matches!(
+                settings.default_game_mode,
+                steel_extension_api::GameMode::Spectator
+            ));
+            assert!(matches!(
+                settings.difficulty,
+                steel_extension_api::Difficulty::Peaceful
+            ));
+            drop(calls);
+            host.finish(0, Ok(OpStatus::Ready("g:m".to_owned())));
+            assert_eq!(reporter.poll(&host), ["World `g:m` is ready"]);
+            assert_eq!(host.messages.borrow()[0].0, 4);
+        }
+
+        #[test]
+        fn create_refusal_is_returned_and_not_tracked() {
+            let (host, cloner, mut reporter) = (host(), cloner(), Reporter::new());
+            host.refused
+                .borrow_mut()
+                .insert("g:m".to_owned(), "key in use".to_owned());
+            let result = start_create(
+                &host,
+                &cloner,
+                &mut reporter,
+                "x:y",
+                "g:m",
+                TargetKind::New,
+                None,
+            );
+            assert_eq!(result, Err("key in use".to_owned()));
+            assert_eq!(reporter.poll(&host), Vec::<String>::new());
+            assert!(host.polls.borrow().is_empty());
+        }
+
+        #[test]
+        fn execute_dispatches_every_request() {
+            let (host, cloner, mut reporter) = (host(), cloner(), Reporter::new());
+            let mut run = |request| execute(&host, &cloner, &mut reporter, request, None);
+            let key = || "g:m".to_owned();
+            let target = TargetKind::New;
+            assert_eq!(
+                run(Request::Templates),
+                Ok("ready: ready\nbroken: failed - no region\nnew: loading".to_owned())
+            );
+            assert_eq!(
+                run(Request::Clone {
+                    template: "ready".to_owned(),
+                    key: key(),
+                    target
+                }),
+                Ok("Cloning world `g:m`...".to_owned())
+            );
+            assert_eq!(
+                run(Request::Create {
+                    generator: "x:y".to_owned(),
+                    key: key(),
+                    target
+                }),
+                Ok("Creating world `g:m`...".to_owned())
+            );
+            assert_eq!(
+                run(Request::Remove { key: key() }),
+                Ok("Removing world `g:m`...".to_owned())
+            );
+            assert!(matches!(
+                host.calls.borrow().as_slice(),
+                [Call::Clone { .. }, Call::Create { .. }, Call::Remove { .. }]
+            ));
         }
 
         #[test]

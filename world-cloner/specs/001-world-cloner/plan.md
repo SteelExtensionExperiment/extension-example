@@ -107,22 +107,25 @@ This extension sits in `extension-example/` inside a Steel checkout, as `SteelEx
 | T007 | T015 (`create_world` binding) |
 | T008 | T018 (`remove_world` binding) |
 
-## Platform gap (recorded 2026-11-23)
+## Platform gap (recorded 2026-11-23, updated 2026-11-24)
 
-Checked `steel-extension-api` in the main checkout (`c806993c`): `Operation`, `OperationStatus` and
-`WorldSettings` exist, but `TemplateState`, `CloneTarget`, `CloneSettings` and the template/clone/remove
-bindings (`load_world_template`, `world_template_status`, clone, `create_world`, `remove_world`) do not.
-Host spec 005 is not merged into the main checkout, so the extension cannot compile against them.
+Host spec 005 is not merged: `steel-extension-api` has `Operation` and `WorldSettings` but not
+`TemplateState`, `CloneTarget`, `CloneSettings` or the template, clone and remove bindings.
 
-| Blocked | Reason |
-| --- | --- |
-| T001, T005 (`world-cloner-api`) | Needs `TemplateState`, `CloneTarget`, `CloneSettings` (platform T012) |
-| T004, T006, T007, T008 | Host bindings (platform T007, T012, T015, T018) |
-| T009 execution | Handlers call the service; only the command tree and argument parsing are built now |
+**Prototype debt (user-approved).** `world-cloner-api/src/host_prototype.rs` defines `TemplateState`,
+`TemplateStatus`, `CloneTarget` and `CloneSettings` with the shapes in 005's `contracts/host-api.md`.
+Swap it for `steel_extension_api` re-exports when 005 lands. `CloneSettings` is not `Copy` there
+(`stabby` options are not `Copy`); do not rely on it.
 
-Done without the host: T002 (scaffold), T003 (configuration), T009 tree and parsing (not registered
-until the service exists). Resume at T001 once host 005 is merged and `steel-extension-api` exports
-the template types.
+**Seam.** All extension logic runs against `HostWorlds` (`src/host.rs`) and is unit-tested with a fake.
+Remaining, all blocked on 005's bindings:
+
+1. `impl HostWorlds for Server` (the one real adapter).
+2. `services::register` of the service in `init`, command registration in `pre_init`, and the tick
+   callback that drives `Startup::tick` and `Reporter::poll`.
+3. The manual check in `quickstart.md`, and decision O1 (native test).
+
+Hard to finish before then: nothing else. Resume at item 1 once host 005 is merged.
 
 ## Complexity Tracking
 

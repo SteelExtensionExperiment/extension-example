@@ -4,10 +4,12 @@
 
 use std::path::PathBuf;
 
-use steel_extension_api::{GameMode as HostGameMode, WorldSettings};
-use world_cloner_api::{CloneRequest, CreateRequest, TemplateInfo, TemplateState};
+use steel_extension_api::{
+    BlockPos, Difficulty as HostDifficulty, GameMode as HostGameMode, WorldSettings,
+};
+use world_cloner_api::{CloneRequest, CloneTarget, CreateRequest, TemplateInfo, TemplateState};
 
-use crate::config::{Config, GameMode, TemplateConfig};
+use crate::config::{Config, CreateConfig, Difficulty, GameMode, TemplateConfig};
 use crate::host::HostWorlds;
 
 const HOST_KEY_DOMAIN: &str = "world-cloner";
@@ -19,6 +21,29 @@ impl From<GameMode> for HostGameMode {
             GameMode::Creative => Self::Creative,
             GameMode::Adventure => Self::Adventure,
             GameMode::Spectator => Self::Spectator,
+        }
+    }
+}
+
+impl From<Difficulty> for HostDifficulty {
+    fn from(difficulty: Difficulty) -> Self {
+        match difficulty {
+            Difficulty::Peaceful => Self::Peaceful,
+            Difficulty::Easy => Self::Easy,
+            Difficulty::Normal => Self::Normal,
+            Difficulty::Hard => Self::Hard,
+        }
+    }
+}
+
+impl From<CreateConfig> for WorldSettings {
+    fn from(config: CreateConfig) -> Self {
+        let [x, y, z] = config.spawn;
+        Self {
+            seed: config.seed,
+            spawn: BlockPos { x, y, z },
+            default_game_mode: config.default_game_mode.into(),
+            difficulty: config.difficulty.into(),
         }
     }
 }
@@ -109,6 +134,17 @@ impl Cloner {
                 Some(HostGameMode::from(template.default_game_mode)).into();
         }
         host.clone_world(&template_key, &request.key, request.target, settings)
+    }
+
+    /// A create request for the admin command: the `[create]` settings of the configuration.
+    #[must_use]
+    pub fn create_request(&self, generator: &str, key: &str, target: CloneTarget) -> CreateRequest {
+        CreateRequest {
+            key: key.into(),
+            generator: generator.into(),
+            target,
+            settings: self.config.create.into(),
+        }
     }
 
     /// Starts creating a generated world with the request's complete settings.

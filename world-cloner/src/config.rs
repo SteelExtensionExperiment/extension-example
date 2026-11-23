@@ -29,6 +29,61 @@ impl GameMode {
     }
 }
 
+/// Initial difficulty of a created world.
+///
+/// Local mirror of the host `Difficulty`, which has no serde support; the caller maps it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Difficulty {
+    Peaceful,
+    Easy,
+    #[default]
+    Normal,
+    Hard,
+}
+
+impl Difficulty {
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "peaceful" => Some(Self::Peaceful),
+            "easy" => Some(Self::Easy),
+            "normal" => Some(Self::Normal),
+            "hard" => Some(Self::Hard),
+            _ => None,
+        }
+    }
+}
+
+/// Number of coordinates in a `[create]` spawn: x, y, z.
+const SPAWN_COORDINATES: usize = 3;
+/// Default `[create]` seed.
+const DEFAULT_SEED: i64 = 0;
+/// Default `[create]` spawn block position, as `[x, y, z]`.
+const DEFAULT_SPAWN: [i32; SPAWN_COORDINATES] = [0, 64, 0];
+
+/// World settings for `/worldcloner create`.
+///
+/// The defaults are a plugin-local choice, not vanilla data, and only the admin command uses
+/// them; service callers always pass their own `WorldSettings`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CreateConfig {
+    pub seed: i64,
+    /// Spawn block position as `[x, y, z]`.
+    pub spawn: [i32; SPAWN_COORDINATES],
+    pub default_game_mode: GameMode,
+    pub difficulty: Difficulty,
+}
+
+impl Default for CreateConfig {
+    fn default() -> Self {
+        Self {
+            seed: DEFAULT_SEED,
+            spawn: DEFAULT_SPAWN,
+            default_game_mode: GameMode::default(),
+            difficulty: Difficulty::default(),
+        }
+    }
+}
+
 /// One validated template entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TemplateConfig {
@@ -44,12 +99,24 @@ pub struct TemplateConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Config {
     pub templates: Vec<TemplateConfig>,
+    pub create: CreateConfig,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
 struct RawConfig {
     templates: Vec<RawTemplate>,
+    create: RawCreate,
+}
+
+// Every key is optional; an unset one keeps the `CreateConfig` default.
+#[derive(Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct RawCreate {
+    seed: Option<i64>,
+    spawn: Option<Vec<i32>>,
+    default_game_mode: Option<String>,
+    difficulty: Option<String>,
 }
 
 // Missing fields default to empty so validation can report them against the entry.
@@ -79,23 +146,60 @@ impl Config {
                 return Err(format!("{label}: duplicate template name"));
             }
             validate_path(&entry.path).map_err(|e| format!("{label}: {e}"))?;
-            let default_game_mode = match entry.default_game_mode.as_deref() {
-                None => GameMode::default(),
-                Some(mode) => GameMode::from_name(mode).ok_or_else(|| {
-                    format!(
-                        "{label}: unknown default_game_mode \"{mode}\" \
-                         (expected survival, creative, adventure or spectator)"
-                    )
-                })?,
-            };
+            let default_game_mode = parse_game_mode(&label, entry.default_game_mode.as_deref())?;
             templates.push(TemplateConfig {
                 name: entry.name,
                 path: entry.path,
                 default_game_mode,
             });
         }
-        Ok(Self { templates })
+        let create = raw.create.validate()?;
+        Ok(Self { templates, create })
     }
+}
+
+impl RawCreate {
+    fn validate(self) -> Result<CreateConfig, String> {
+        const LABEL: &str = "[create]";
+        let defaults = CreateConfig::default();
+        let spawn = match self.spawn {
+            None => defaults.spawn,
+            Some(coordinates) => coordinates.try_into().map_err(|c: Vec<i32>| {
+                format!(
+                    "{LABEL}: spawn must be [x, y, z] ({SPAWN_COORDINATES} coordinates), found {}",
+                    c.len()
+                )
+            })?,
+        };
+        let difficulty = match self.difficulty.as_deref() {
+            None => defaults.difficulty,
+            Some(name) => Difficulty::from_name(name).ok_or_else(|| {
+                format!(
+                    "{LABEL}: unknown difficulty \"{name}\" \
+                     (expected peaceful, easy, normal or hard)"
+                )
+            })?,
+        };
+        Ok(CreateConfig {
+            seed: self.seed.unwrap_or(defaults.seed),
+            spawn,
+            default_game_mode: parse_game_mode(LABEL, self.default_game_mode.as_deref())?,
+            difficulty,
+        })
+    }
+}
+
+/// Parses an optional `default_game_mode`, naming `label` in the error.
+fn parse_game_mode(label: &str, name: Option<&str>) -> Result<GameMode, String> {
+    let Some(mode) = name else {
+        return Ok(GameMode::default());
+    };
+    GameMode::from_name(mode).ok_or_else(|| {
+        format!(
+            "{label}: unknown default_game_mode \"{mode}\" \
+             (expected survival, creative, adventure or spectator)"
+        )
+    })
 }
 
 fn validate_name(name: &str) -> Result<(), String> {
@@ -196,6 +300,61 @@ mod tests {
     fn game_mode_defaults_to_survival() {
         let config = Config::parse(&entry("a", "x")).unwrap();
         assert_eq!(config.templates[0].default_game_mode, GameMode::Survival);
+    }
+
+    fn create_error(toml: &str, field: &str) {
+        let err = Config::parse(toml).expect_err("config should be rejected");
+        assert!(
+            err.contains("[create]") && err.contains(field),
+            "message does not name the section and field: {err}"
+        );
+    }
+
+    #[test]
+    fn create_defaults_when_absent_or_partial() {
+        let defaults = CreateConfig {
+            seed: 0,
+            spawn: [0, 64, 0],
+            default_game_mode: GameMode::Survival,
+            difficulty: Difficulty::Normal,
+        };
+        assert_eq!(Config::parse("").unwrap().create, defaults);
+        assert_eq!(Config::parse("[create]").unwrap().create, defaults);
+        let partial = Config::parse("[create]\nseed = -5\n").unwrap().create;
+        assert_eq!(
+            partial,
+            CreateConfig {
+                seed: -5,
+                ..defaults
+            }
+        );
+    }
+
+    #[test]
+    fn create_full_section() {
+        let toml = "[create]\nseed = 9\nspawn = [1, -2, 3]\n\
+                    default_game_mode = \"creative\"\ndifficulty = \"hard\"\n";
+        assert_eq!(
+            Config::parse(toml).unwrap().create,
+            CreateConfig {
+                seed: 9,
+                spawn: [1, -2, 3],
+                default_game_mode: GameMode::Creative,
+                difficulty: Difficulty::Hard,
+            }
+        );
+    }
+
+    #[test]
+    fn create_rejections_name_the_section_and_field() {
+        create_error(
+            "[create]\ndefault_game_mode = \"hardcore\"\n",
+            "default_game_mode",
+        );
+        create_error("[create]\ndifficulty = \"brutal\"\n", "difficulty");
+        create_error("[create]\nspawn = [0, 64]\n", "spawn");
+        create_error("[create]\nspawn = [0, 64, 0, 1]\n", "spawn");
+        assert!(Config::parse("[create]\nbogus = 1\n").is_err());
     }
 
     #[test]
