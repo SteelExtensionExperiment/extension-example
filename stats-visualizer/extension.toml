@@ -1,0 +1,11 @@
+[package]
+name = "stats-visualizer"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libstats_visualizer.so"
+linux-aarch64 = "libstats_visualizer.so"
+macos-x86_64 = "libstats_visualizer.dylib"
+macos-aarch64 = "libstats_visualizer.dylib"
+windows-x86_64 = "stats_visualizer.dll"
+windows-aarch64 = "stats_visualizer.dll"
