@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 steel-extension-api = { path = "../../steel-extension-api" }
+world-cloner-api = { path = "../world-cloner-api" }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 

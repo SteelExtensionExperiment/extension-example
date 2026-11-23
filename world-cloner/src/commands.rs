@@ -11,6 +11,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use steel_extension_api::command::{Arg, CommandBuilder, Invocation, argument, literal};
+use world_cloner_api::{CloneRequest, CloneSettings, CloneTarget, TemplateState};
+
+use crate::host::{HostWorlds, OpStatus};
+use crate::service::Cloner;
 
 const ROOT_KEY: &str = "worldcloner:worldcloner";
 const KEY_SEPARATOR: char = ':';
@@ -180,6 +184,178 @@ where
         )
 }
 
+impl From<TargetKind> for CloneTarget {
+    fn from(kind: TargetKind) -> Self {
+        match kind {
+            TargetKind::New => Self::NewTemporaryDomain,
+            TargetKind::Existing => Self::ExistingDomain,
+        }
+    }
+}
+
+/// What a tracked operation does to its world.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationKind {
+    Clone,
+    Create,
+    Remove,
+}
+
+impl OperationKind {
+    const fn gerund(self) -> &'static str {
+        match self {
+            Self::Clone => "Cloning",
+            Self::Create => "Creating",
+            Self::Remove => "Removing",
+        }
+    }
+
+    fn progress(self, key: &str) -> String {
+        format!("{} world `{key}`...", self.gerund())
+    }
+
+    fn outcome(self, key: &str, result: &Result<String, String>) -> String {
+        match (result, self) {
+            (Ok(_), Self::Remove) => format!("World `{key}` removed"),
+            (Ok(_), _) => format!("World `{key}` is ready"),
+            (Err(diagnostic), _) => format!("{} world `{key}` failed: {diagnostic}", self.gerund()),
+        }
+    }
+}
+
+/// An operation started by a command, kept until its result can be reported.
+pub struct PendingOperation<H: HostWorlds> {
+    pub operation: H::Operation,
+    pub kind: OperationKind,
+    pub key: String,
+    /// The player to message; `None` when the sender is not a player.
+    pub reply_to: Option<H::Player>,
+}
+
+/// Reports the final result of command-started operations to the sender and the log.
+pub struct Reporter<H: HostWorlds> {
+    pending: Vec<PendingOperation<H>>,
+}
+
+impl<H: HostWorlds> Default for Reporter<H> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<H: HostWorlds> Reporter<H> {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            pending: Vec::new(),
+        }
+    }
+
+    pub fn track(&mut self, pending: PendingOperation<H>) {
+        self.pending.push(pending);
+    }
+
+    /// Polls each tracked operation once, messages the sender of each one that finished, drops
+    /// it, and returns one log line per finished operation.
+    pub fn poll(&mut self, host: &H) -> Vec<String> {
+        let mut lines = Vec::new();
+        for pending in std::mem::take(&mut self.pending) {
+            let Some(result) = OpStatus::finished(host.operation_status(pending.operation)) else {
+                self.pending.push(pending);
+                continue;
+            };
+            let line = pending.kind.outcome(&pending.key, &result);
+            if let Some(player) = pending.reply_to {
+                host.message(player, &line);
+            }
+            lines.push(line);
+        }
+        lines
+    }
+}
+
+fn state_name(state: TemplateState) -> &'static str {
+    match state {
+        TemplateState::Loading => "loading",
+        TemplateState::Ready => "ready",
+        TemplateState::Failed => "failed",
+    }
+}
+
+/// `/worldcloner templates`: one line per template with its state, and the message when Failed.
+#[must_use]
+pub fn list_templates<H: HostWorlds>(host: &H, cloner: &Cloner) -> String {
+    let templates = cloner.templates(host);
+    if templates.is_empty() {
+        return "No templates configured".to_owned();
+    }
+    let lines: Vec<String> = templates
+        .iter()
+        .map(|info| match info.state {
+            TemplateState::Failed => format!("{}: failed - {}", info.name, info.message),
+            state => format!("{}: {}", info.name, state_name(state)),
+        })
+        .collect();
+    lines.join("\n")
+}
+
+/// `/worldcloner clone`: starts the clone and tracks it for reporting. Returns the immediate
+/// feedback.
+///
+/// # Errors
+/// The service's or host's immediate refusal, unchanged.
+pub fn start_clone<H: HostWorlds>(
+    host: &H,
+    cloner: &Cloner,
+    reporter: &mut Reporter<H>,
+    template: &str,
+    key: &str,
+    target: TargetKind,
+    sender: Option<H::Player>,
+) -> Result<String, String> {
+    let request = CloneRequest {
+        template: template.into(),
+        key: key.into(),
+        target: target.into(),
+        settings: CloneSettings {
+            seed: None.into(),
+            spawn: None.into(),
+            default_game_mode: None.into(),
+            difficulty: None.into(),
+        },
+    };
+    let operation = cloner.clone_world(host, request)?;
+    reporter.track(PendingOperation {
+        operation,
+        kind: OperationKind::Clone,
+        key: key.to_owned(),
+        reply_to: sender,
+    });
+    Ok(OperationKind::Clone.progress(key))
+}
+
+/// `/worldcloner remove`: starts the removal and tracks it for reporting. Returns the immediate
+/// feedback.
+///
+/// # Errors
+/// The host's immediate refusal, unchanged.
+pub fn start_remove<H: HostWorlds>(
+    host: &H,
+    cloner: &Cloner,
+    reporter: &mut Reporter<H>,
+    key: &str,
+    sender: Option<H::Player>,
+) -> Result<String, String> {
+    let operation = cloner.remove_world(host, key)?;
+    reporter.track(PendingOperation {
+        operation,
+        kind: OperationKind::Remove,
+        key: key.to_owned(),
+        reply_to: sender,
+    });
+    Ok(OperationKind::Remove.progress(key))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,5 +421,184 @@ mod tests {
             })
         );
         assert!(parse_remove("map").is_err());
+    }
+
+    mod execution {
+        use std::path::PathBuf;
+
+        use world_cloner_api::TemplateStatus;
+
+        use super::*;
+        use crate::config::Config;
+        use crate::host::fake::{Call, FakeHost};
+
+        fn cloner() -> Cloner {
+            let toml = "[[templates]]\nname = \"ready\"\npath = \"r\"\n\
+                        [[templates]]\nname = \"broken\"\npath = \"b\"\n\
+                        [[templates]]\nname = \"new\"\npath = \"n\"\n";
+            Cloner::new(Config::parse(toml).unwrap(), PathBuf::from("/data"))
+        }
+
+        fn host() -> FakeHost {
+            let host = FakeHost::default();
+            let status = |state, message: &str| TemplateStatus {
+                state,
+                message: message.into(),
+                chunks: 0,
+            };
+            let mut statuses = host.statuses.borrow_mut();
+            statuses.insert(
+                "world-cloner:ready".to_owned(),
+                status(TemplateState::Ready, ""),
+            );
+            statuses.insert(
+                "world-cloner:broken".to_owned(),
+                status(TemplateState::Failed, "no region"),
+            );
+            drop(statuses);
+            host
+        }
+
+        fn track(
+            reporter: &mut Reporter<FakeHost>,
+            operation: u32,
+            kind: OperationKind,
+            player: Option<u32>,
+        ) {
+            reporter.track(PendingOperation {
+                operation,
+                kind,
+                key: "a:w".to_owned(),
+                reply_to: player,
+            });
+        }
+
+        #[test]
+        fn success_messages_the_player_and_returns_a_log_line() {
+            let (host, mut reporter) = (FakeHost::default(), Reporter::new());
+            track(&mut reporter, 0, OperationKind::Clone, Some(9));
+            host.finish(0, Ok(OpStatus::Ready("a:w".to_owned())));
+            assert_eq!(reporter.poll(&host), ["World `a:w` is ready"]);
+            assert_eq!(
+                *host.messages.borrow(),
+                [(9, "World `a:w` is ready".to_owned())]
+            );
+        }
+
+        #[test]
+        fn failure_carries_the_diagnostic_and_a_lost_operation_counts_as_failure() {
+            let (host, mut reporter) = (FakeHost::default(), Reporter::new());
+            track(&mut reporter, 0, OperationKind::Create, Some(1));
+            track(&mut reporter, 1, OperationKind::Remove, Some(1));
+            host.finish(0, Ok(OpStatus::Failed("generator missing".to_owned())));
+            host.finish(1, Err("unknown operation".to_owned()));
+            assert_eq!(
+                reporter.poll(&host),
+                [
+                    "Creating world `a:w` failed: generator missing",
+                    "Removing world `a:w` failed: unknown operation"
+                ]
+            );
+            assert_eq!(host.messages.borrow().len(), 2);
+        }
+
+        #[test]
+        fn no_player_means_log_only_and_removal_has_its_own_wording() {
+            let (host, mut reporter) = (FakeHost::default(), Reporter::new());
+            track(&mut reporter, 0, OperationKind::Remove, None);
+            host.finish(0, Ok(OpStatus::Ready("a:w".to_owned())));
+            assert_eq!(reporter.poll(&host), ["World `a:w` removed"]);
+            assert!(host.messages.borrow().is_empty());
+        }
+
+        #[test]
+        fn pending_is_kept_and_finished_is_dropped() {
+            let (host, mut reporter) = (FakeHost::default(), Reporter::new());
+            track(&mut reporter, 0, OperationKind::Clone, None);
+            track(&mut reporter, 1, OperationKind::Clone, None);
+            host.finish(1, Ok(OpStatus::Ready(String::new())));
+            assert_eq!(reporter.poll(&host).len(), 1);
+            host.finish(0, Ok(OpStatus::Ready(String::new())));
+            assert_eq!(reporter.poll(&host).len(), 1);
+            host.polls.borrow_mut().clear();
+            assert_eq!(reporter.poll(&host), Vec::<String>::new());
+            assert!(host.polls.borrow().is_empty());
+        }
+
+        #[test]
+        fn templates_lists_one_line_each_with_the_failure_message() {
+            assert_eq!(
+                list_templates(&host(), &cloner()),
+                "ready: ready\nbroken: failed - no region\nnew: loading"
+            );
+            let empty = Cloner::new(Config::default(), PathBuf::new());
+            assert_eq!(list_templates(&host(), &empty), "No templates configured");
+        }
+
+        #[test]
+        fn clone_starts_tracks_and_reports_to_the_sender() {
+            let (host, cloner, mut reporter) = (host(), cloner(), Reporter::new());
+            let feedback = start_clone(
+                &host,
+                &cloner,
+                &mut reporter,
+                "ready",
+                "g:m",
+                TargetKind::Existing,
+                Some(5),
+            );
+            assert_eq!(feedback, Ok("Cloning world `g:m`...".to_owned()));
+            assert!(matches!(
+                host.calls.borrow().as_slice(),
+                [Call::Clone {
+                    target: CloneTarget::ExistingDomain,
+                    ..
+                }]
+            ));
+            host.finish(0, Ok(OpStatus::Ready("g:m".to_owned())));
+            assert_eq!(reporter.poll(&host), ["World `g:m` is ready"]);
+            assert_eq!(host.messages.borrow()[0].0, 5);
+        }
+
+        #[test]
+        fn immediate_refusals_are_returned_and_not_tracked() {
+            let (host, cloner, mut reporter) = (host(), cloner(), Reporter::new());
+            let clone = |reporter: &mut Reporter<FakeHost>, template| {
+                start_clone(
+                    &host,
+                    &cloner,
+                    reporter,
+                    template,
+                    "g:m",
+                    TargetKind::New,
+                    None,
+                )
+            };
+            assert_eq!(
+                clone(&mut reporter, "nope"),
+                Err("unknown template nope".to_owned())
+            );
+            assert_eq!(clone(&mut reporter, "broken"), Err("no region".to_owned()));
+            assert_eq!(
+                clone(&mut reporter, "new"),
+                Err("template is still loading".to_owned())
+            );
+            host.refused
+                .borrow_mut()
+                .insert("g:w".to_owned(), "not removable".to_owned());
+            let removed = start_remove(&host, &cloner, &mut reporter, "g:w", None);
+            assert_eq!(removed, Err("not removable".to_owned()));
+            assert_eq!(reporter.poll(&host), Vec::<String>::new());
+            assert!(host.polls.borrow().is_empty());
+        }
+
+        #[test]
+        fn remove_starts_and_tracks() {
+            let (host, cloner, mut reporter) = (host(), cloner(), Reporter::new());
+            let feedback = start_remove(&host, &cloner, &mut reporter, "g:m", Some(2));
+            assert_eq!(feedback, Ok("Removing world `g:m`...".to_owned()));
+            host.finish(0, Ok(OpStatus::Ready("g:m".to_owned())));
+            assert_eq!(reporter.poll(&host), ["World `g:m` removed"]);
+        }
     }
 }

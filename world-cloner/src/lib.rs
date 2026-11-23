@@ -3,6 +3,9 @@
 
 pub mod commands;
 pub mod config;
+pub mod host;
+pub mod service;
+pub mod startup;
 
 use steel_extension_api::{ExtensionContext, Hooks};
 

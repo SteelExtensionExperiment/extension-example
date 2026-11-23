@@ -253,4 +253,12 @@ dependencies = [
  "serde",
  "steel-extension-api",
  "toml",
+ "world-cloner-api",
+]
+
+[[package]]
+name = "world-cloner-api"
+version = "0.1.0"
+dependencies = [
+ "steel-extension-api",
 ]
