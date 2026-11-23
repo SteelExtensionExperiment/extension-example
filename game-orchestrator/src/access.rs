@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-const TICKS_PER_SECOND: u64 = 20;
+pub(crate) const TICKS_PER_SECOND: u64 = 20;
 const SECONDS_PER_HOUR: u64 = 3600;
 const TICKS_PER_HOUR: u64 = TICKS_PER_SECOND * SECONDS_PER_HOUR;
 

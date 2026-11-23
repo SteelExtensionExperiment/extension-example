@@ -4,6 +4,7 @@
 mod access;
 mod config;
 mod kits;
+mod orchestrator;
 mod queues;
 mod signs;
 mod store;
