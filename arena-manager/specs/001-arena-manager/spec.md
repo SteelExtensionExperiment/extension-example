@@ -170,7 +170,7 @@ players with their alive status.
 - **A1**: world-cloner and its host platform (`specs/005-world-templates/`, tasks T012 for clone, T018 for remove) are implemented first.
 - **A2**: the extension sits in `extension-example/` of the Steel checkout (`../../steel-extension-api`).
 - **A3**: kits and game types are provided by the orchestrator side (D4, D9); arena-manager stores none.
-- **A4**: Out of scope: queueing (D7), kit storage, statistics, teams, spectators, rematches, hot reload of the configuration, persisting matches.
+- **A4**: Out of scope: queuing (D7), kit storage, statistics, teams, spectators, rematches, hot reload of the configuration, persisting matches.
 - **O1 (open)**: where the extension's native integration test lives (as in world-cloner O1).
 - **O2 (decided)**: no `game-registry`; service `arena-manager:match/v1` plus actions `MatchFinished`/`MatchFailed`; `Outcome` is `Won | Lost | Draw`; draw handling for statistics is proposed as neither win nor loss (confirm). Still open: the kit field (host spec 007).
 - **O3 (open)**: how a dead player is moved out of the respawn screen (research R6); may need a host change.
