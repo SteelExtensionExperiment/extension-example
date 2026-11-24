@@ -27,10 +27,19 @@ Types that cross the extension boundary are `#[stabby::stabby]`. `TemplateState`
 name = "skywars_a"               # unique; letters, digits, '_' and '-'
 path = "templates/skywars_a"     # relative to the extension data directory; must not escape it
 default_game_mode = "survival"   # survival | creative | adventure | spectator; default survival
+
+[create]                         # optional; settings for `/worldcloner create`, every key optional
+seed = 0                         # i64
+spawn = [0, 64, 0]               # [x, y, z] block coordinates
+default_game_mode = "survival"   # same set as templates
+difficulty = "normal"            # peaceful | easy | normal | hard
 ```
 
+The `[create]` defaults shown are a plugin-local choice, not vanilla data, and only the admin command
+uses them; service callers always pass their own `WorldSettings`.
+
 Validation at `init` (FR-002): unique names, name characters, no absolute paths or `..`, known game
-mode. A failure refuses to start the extension with a message naming the entry. `path` points at the
+mode, and in `[create]` a 3-element `spawn`, a known game mode and a known difficulty. A failure refuses to start the extension with a message naming the entry. `path` points at the
 saved world folder itself (the directory that holds `region/` and `level.toml`), resolved against
 `ExtensionContext::data_directory()`.
 
@@ -38,8 +47,9 @@ saved world folder itself (the directory that holds `region/` and `level.toml`),
 
 | Entity | Fields |
 | --- | --- |
-| `Cloner` | `templates: Vec<TemplateConfig>`, `data_dir`, `startup: Vec<(name, Operation)>`, `pending: Vec<PendingOperation>`. |
+| `Cloner` | `config: Config` (`templates`, `create`), `data_dir`, `startup: Vec<(name, Operation)>`, `pending: Vec<PendingOperation>`. |
 | `TemplateConfig` | `{ name, path, default_game_mode }`, validated. |
+| `CreateConfig` | `{ seed, spawn: [x, y, z], default_game_mode, difficulty }`, validated; built into the `WorldSettings` of `/worldcloner create`. |
 | `PendingOperation` | `{ operation: Operation, kind: Clone | Create | Remove, key: String, reply_to: Option<PlayerId> }`. Only commands record one; operations returned through the service belong to the caller. |
 
 The extension keeps no template data: the host registry is the source of truth, read with

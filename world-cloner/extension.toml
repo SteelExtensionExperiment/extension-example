@@ -1,0 +1,11 @@
+[package]
+name = "world-cloner"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libworld_cloner.so"
+linux-aarch64 = "libworld_cloner.so"
+macos-x86_64 = "libworld_cloner.dylib"
+macos-aarch64 = "libworld_cloner.dylib"
+windows-x86_64 = "world_cloner.dll"
+windows-aarch64 = "world_cloner.dll"
