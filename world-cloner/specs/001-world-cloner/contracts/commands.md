@@ -29,3 +29,7 @@ denied without it, from players and console alike where the host's permission ru
 | Host refusal (key in use, domain missing, not removable, …) | The host's diagnostic, unchanged. |
 | Operation failed later | The operation's diagnostic. |
 | Missing permission | The host's standard denial. |
+
+## Syntax note (accepted 2026-11-24)
+
+Keys contain `:`, which the host's word and string arguments stop at, so after `<template>` the tree takes one greedy argument and the extension splits `<key>` and `<new|existing>` itself. `new` and `existing` do not tab-complete.

@@ -72,7 +72,7 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 ## Phase 5: Polish & cross-cutting
 
 - [x] T010 [P] Write `world-cloner/README.md` and `world-cloner-api/README.md`: layout requirement (`SteelExtensionMC/extension-example/world-cloner/`), configuration, service, commands, and the rule that callers poll every `Operation`.
-- [ ] T011 [P] (clippy, fmt and typos clean for both crates; manual check and O1 pending host 005) Run `cargo clippy` and `cargo fmt --check` for both crates, `typos`, and the manual check in [quickstart.md](quickstart.md). Decide O1 (research R2) and add the native test if the decision calls for one.
+- [ ] T011 [P] (clippy, fmt and typos clean for both crates; manual check pending host 005; O1 decided: no native test) Run `cargo clippy` and `cargo fmt --check` for both crates, `typos`, and the manual check in [quickstart.md](quickstart.md). Decide O1 (research R2) and add the native test if the decision calls for one.
 
 ---
 

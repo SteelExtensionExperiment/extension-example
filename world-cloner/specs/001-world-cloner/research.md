@@ -68,7 +68,7 @@ worlds, removal) is researched in `specs/005-world-templates/research.md` in the
 3. No native test for this extension: unit tests for configuration, request mapping and command syntax, the
    platform's probe test for host behavior, and the manual check in [quickstart.md](quickstart.md).
 
-Until O1 is decided, the plan assumes option 3: tasks T003, T006 and T009 carry the unit tests.
+**Decided 2026-11-24: option 3.** tasks T003, T006 and T009 carry the unit tests.
 
 ## R3. Risks and open points
 
