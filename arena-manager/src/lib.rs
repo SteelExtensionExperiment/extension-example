@@ -4,9 +4,12 @@
 mod allocator;
 mod commands;
 mod config;
+mod host;
 mod matches;
 mod state;
 mod store;
+mod transfer;
+mod worlds;
 
 use std::path::PathBuf;
 use steel_extension_api::{ExtensionContext, Hooks};

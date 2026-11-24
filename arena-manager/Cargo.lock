@@ -10,6 +10,7 @@ dependencies = [
  "serde",
  "steel-extension-api",
  "toml",
+ "world-cloner-api",
 ]
 
 [[package]]
@@ -261,4 +262,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "world-cloner-api"
+version = "0.1.0"
+dependencies = [
+ "steel-extension-api",
 ]

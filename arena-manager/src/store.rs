@@ -21,6 +21,17 @@ pub enum LobbyGameMode {
     Spectator,
 }
 
+impl From<LobbyGameMode> for steel_extension_api::GameMode {
+    fn from(mode: LobbyGameMode) -> Self {
+        match mode {
+            LobbyGameMode::Survival => Self::Survival,
+            LobbyGameMode::Creative => Self::Creative,
+            LobbyGameMode::Adventure => Self::Adventure,
+            LobbyGameMode::Spectator => Self::Spectator,
+        }
+    }
+}
+
 /// Where players return after a match.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

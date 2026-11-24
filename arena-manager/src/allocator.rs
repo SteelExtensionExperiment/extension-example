@@ -1,6 +1,7 @@
 //! Picks the arena and world for a match request. Pure: the caller creates worlds and applies
 //! the result.
 use crate::store::ArenaStore;
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashSet;
 use std::fmt;
 
@@ -59,9 +60,9 @@ impl fmt::Display for Rejection {
 /// Reserves a free complete arena whose slot count equals `player_count`.
 ///
 /// Only `Ready` worlds are reused. Every world counts toward `max_worlds`, whatever its state.
-pub fn allocate(
+pub fn allocate<W: BorrowMut<WorldView>>(
     store: &ArenaStore,
-    worlds: &mut [WorldView],
+    worlds: &mut [W],
     max_worlds: usize,
     game_type: &str,
     player_count: usize,
@@ -82,9 +83,13 @@ pub fn allocate(
         });
     };
 
-    let ready_worlds = worlds
-        .iter_mut()
-        .filter(|world| world.readiness == WorldReadiness::Ready && world.game_type == game_type);
+    let ready_worlds =
+        worlds
+            .iter_mut()
+            .map(BorrowMut::borrow_mut)
+            .filter(|world: &&mut WorldView| {
+                world.readiness == WorldReadiness::Ready && world.game_type == game_type
+            });
     for world in ready_worlds {
         let Some(&arena) = candidates
             .iter()
@@ -108,9 +113,10 @@ pub fn allocate(
 }
 
 /// Ready worlds without a match: candidates for cleanup.
-pub fn idle_worlds(worlds: &[WorldView]) -> impl Iterator<Item = &WorldView> {
+pub fn idle_worlds<W: Borrow<WorldView>>(worlds: &[W]) -> impl Iterator<Item = &WorldView> {
     worlds
         .iter()
+        .map(Borrow::borrow)
         .filter(|world| world.readiness == WorldReadiness::Ready && world.busy.is_empty())
 }
 
@@ -157,6 +163,10 @@ mod tests {
         }
     }
 
+    fn no_worlds() -> Vec<WorldView> {
+        Vec::new()
+    }
+
     fn existing(world: &str, arena: &str) -> Allocation {
         Allocation::Existing {
             world: world.to_owned(),
@@ -182,7 +192,10 @@ mod tests {
     #[test]
     fn cap_counts_worlds_in_every_state() {
         let store = store(vec![arena("a", 2)]);
-        assert_eq!(allocate(&store, &mut [], 1, GAME, 2), Ok(new_world("a")));
+        assert_eq!(
+            allocate(&store, &mut no_worlds(), 1, GAME, 2),
+            Ok(new_world("a"))
+        );
         for readiness in [
             WorldReadiness::Creating,
             WorldReadiness::Removing,
@@ -220,10 +233,13 @@ mod tests {
         let mut gap = arena("gap", 3);
         gap.spawns.remove(1);
         let store = store(vec![arena("one", 1), gap, arena("ok", 2)]);
-        assert_eq!(allocate(&store, &mut [], 1, GAME, 2), Ok(new_world("ok")));
+        assert_eq!(
+            allocate(&store, &mut no_worlds(), 1, GAME, 2),
+            Ok(new_world("ok"))
+        );
         let only_incomplete = self::store(vec![arena("one", 1)]);
         assert_eq!(
-            allocate(&only_incomplete, &mut [], 1, GAME, 1),
+            allocate(&only_incomplete, &mut no_worlds(), 1, GAME, 1),
             Err(Rejection::NoArena {
                 game_type: GAME.to_owned(),
                 player_count: 1
@@ -234,7 +250,7 @@ mod tests {
     #[test]
     fn slot_count_must_equal_player_count() {
         let store = store(vec![arena("a", 4)]);
-        let error = allocate(&store, &mut [], 1, GAME, 2).unwrap_err();
+        let error = allocate(&store, &mut no_worlds(), 1, GAME, 2).unwrap_err();
         assert_eq!(
             error,
             Rejection::NoArena {
@@ -246,13 +262,16 @@ mod tests {
             error.to_string(),
             "no complete arena for duel with 2 players"
         );
-        assert_eq!(allocate(&store, &mut [], 1, GAME, 4), Ok(new_world("a")));
+        assert_eq!(
+            allocate(&store, &mut no_worlds(), 1, GAME, 4),
+            Ok(new_world("a"))
+        );
     }
 
     #[test]
     fn unknown_game_type_is_rejected() {
         let store = store(vec![arena("a", 2)]);
-        let error = allocate(&store, &mut [], 1, "ctf", 2).unwrap_err();
+        let error = allocate(&store, &mut no_worlds(), 1, "ctf", 2).unwrap_err();
         assert_eq!(error, Rejection::UnknownGameType("ctf".to_owned()));
         assert_eq!(error.to_string(), "unknown game type ctf");
     }
