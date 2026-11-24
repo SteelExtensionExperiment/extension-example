@@ -66,10 +66,10 @@ pub fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 /// Writes the files whose data changed, or both when `force` is set (shutdown). A dirty flag
 /// is cleared only after its write succeeded. Returns the write errors for the caller to log;
 /// this never logs, so no host call happens under a lock.
-pub fn save_changed<S: DataStore>(
+pub fn save_changed<S: DataStore, H: Copy>(
     store: &S,
     stats: &Mutex<Stats>,
-    boards: &Mutex<BoardList>,
+    boards: &Mutex<BoardList<H>>,
     force: bool,
 ) -> Vec<String> {
     let mut errors = Vec::new();

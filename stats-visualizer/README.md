@@ -4,11 +4,11 @@ Steel extension: floating scoreboards (holograms) that show the top 5 players by
 with their W/L ratio. Results and game types come from the `game-orchestrator` extension. Stats and
 board locations are stored in the extension data directory.
 
-**Status:** partly implemented. Done (tasks T001-T005): ranking, stats accumulation, TOML storage with
-atomic saves, configuration, autosave and save on shutdown. Not done: boards (need host spec
-`specs/006-text-holograms/`, not implemented yet), orchestrator results and game types (T007, T010, T011;
-open decision on how `Draw` counts), the `/statsboard` command (T009). The spec is in
-[`specs/001-stats-visualizer/`](specs/001-stats-visualizer/spec.md).
+**Status:** implemented (tasks T001-T009, T011, and T010 except completion). Match results update stats,
+boards show the top 5 as holograms and refresh after each result, and `/statsboard place|remove|list` manages
+boards. Known gap: `<gametype>` is validated but not tab-completed, because a command suggester gets no
+`Server` (host change needed, see `specs/001-stats-visualizer/plan.md`). Not yet run against a live server.
+A `Draw` outcome is ignored (neither win nor loss).
 
 ## Configuration
 
@@ -30,10 +30,15 @@ server stop; a crash loses changes since the last autosave.
 
 ## Commands and dependencies
 
-`/statsboard place|remove|list` is specified in
-[`contracts/commands.md`](specs/001-stats-visualizer/contracts/commands.md) and not implemented yet. It will
-need the host hologram bindings and the `game-orchestrator` extension (`depends: ["game-orchestrator"]`
-once T007 lands).
+| Command | Permission |
+| --- | --- |
+| `/statsboard place <id> <gametype> [<x> <y> <z> [<world>]]` | `statsboard.place` |
+| `/statsboard remove <id>` | `statsboard.remove` |
+| `/statsboard list` | `statsboard.list` |
+
+Details in [`contracts/commands.md`](specs/001-stats-visualizer/contracts/commands.md). Depends on the
+`game-orchestrator` extension and on the host text holograms (spec 006). Results are applied one tick after
+they arrive, and boards come back one tick after init or a world load.
 
 ## Layout
 

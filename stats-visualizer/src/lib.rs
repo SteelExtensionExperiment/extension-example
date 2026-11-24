@@ -3,9 +3,11 @@
 #![recursion_limit = "256"]
 
 mod boards;
+mod commands;
 mod config;
 mod game_types;
 mod ranking;
+mod restore;
 mod results;
 mod state;
 mod stats;
@@ -38,6 +40,8 @@ fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
         log_errors(errors);
     });
     results::register(&mut hooks)?;
+    restore::register(&mut hooks);
+    hooks.on_commands(commands::register)?;
     Ok(())
 }
 
@@ -65,6 +69,7 @@ fn init(context: ExtensionContext<'_>) -> Result<(), String> {
             }
         },
     );
+    restore::restore_on_next_tick();
     Ok(())
 }
 

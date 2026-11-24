@@ -31,6 +31,9 @@ pub trait HologramHost {
     /// The host's message if the hologram no longer exists.
     fn set_text(&self, handle: Self::Handle, text: &str) -> Result<(), String>;
 
+    /// Whether `world` (a `domain:world` key) is loaded.
+    fn world_loaded(&self, world: &str) -> bool;
+
     /// Returns whether the handle was still valid.
     ///
     /// # Errors
@@ -51,6 +54,10 @@ impl HologramHost for Server<'_> {
             .match_owned(Ok, |error| Err(error.to_string()))
     }
 
+    fn world_loaded(&self, world: &str) -> bool {
+        self.with_world(world, |_| ()).is_ok()
+    }
+
     fn remove(&self, handle: HologramId) -> Result<bool, String> {
         self.remove_hologram(handle)
             .match_owned(Ok, |error| Err(error.to_string()))
@@ -65,6 +72,8 @@ pub struct Board<H = HologramId> {
     pub hologram: Option<H>,
     /// Lines last sent to the host; an equal ranking skips the host call.
     pub last_lines: Vec<String>,
+    /// The host refused the last create; the refusal was already reported.
+    create_refused: bool,
 }
 
 impl<H: Copy> Board<H> {
@@ -74,15 +83,24 @@ impl<H: Copy> Board<H> {
             record,
             hologram: None,
             last_lines: Vec::new(),
+            create_refused: false,
         }
+    }
+
+    /// Drops the hologram handle after the host dropped the hologram with its world.
+    pub fn deactivate(&mut self) {
+        self.hologram = None;
+        self.last_lines.clear();
+        self.create_refused = false;
     }
 
     /// Brings the hologram to `lines`: creates it when missing, updates it when the lines
     /// changed, otherwise makes no host call.
     ///
     /// # Errors
-    /// The host's message. A failed create leaves the board inactive; a failed update means the
-    /// hologram is gone, so it is dropped and the next refresh creates it again.
+    /// The host's message. A failed create leaves the board inactive and is reported once: later
+    /// refused creates return `Ok` until one succeeds or the board is deactivated. A failed
+    /// update means the hologram is gone, so it is dropped and the next refresh creates it again.
     pub fn refresh<S: HologramHost<Handle = H>>(
         &mut self,
         lines: &[String],
@@ -96,7 +114,17 @@ impl<H: Copy> Board<H> {
                     y: self.record.y,
                     z: self.record.z,
                 };
-                self.hologram = Some(host.create(&self.record.world, position, &text)?);
+                match host.create(&self.record.world, position, &text) {
+                    Ok(handle) => {
+                        self.hologram = Some(handle);
+                        self.create_refused = false;
+                    }
+                    Err(_) if self.create_refused => return Ok(()),
+                    Err(error) => {
+                        self.create_refused = true;
+                        return Err(error);
+                    }
+                }
             }
             Some(_) if self.last_lines == lines => return Ok(()),
             Some(handle) => {
@@ -158,30 +186,39 @@ pub fn ranking_for(stats: &Stats, game_type: &str) -> Vec<RankingLine> {
     }))
 }
 
-/// Refreshes the boards of `game_type` and returns the errors for the caller to log.
+/// Refreshes the boards `select` accepts and returns the errors for the caller to log.
 ///
 /// The stats lock is released before any host call. The boards lock is held across them: the
 /// hologram bindings only touch worlds and never call back into extensions, and the boards
 /// must stay consistent with the handles the host returns.
+pub fn refresh_boards<S: HologramHost>(
+    boards: &Mutex<BoardList<S::Handle>>,
+    stats: &Mutex<Stats>,
+    host: &S,
+    select: impl Fn(&Board<S::Handle>) -> bool,
+) -> Vec<String> {
+    let mut list = lock(boards);
+    let mut errors = Vec::new();
+    for board in list.boards.iter_mut().filter(|board| select(board)) {
+        let game_type = &board.record.game_type;
+        let lines = render_lines(game_type, &ranking_for(&lock(stats), game_type));
+        if let Err(error) = board.refresh(&lines, host) {
+            errors.push(format!("Board {}: {error}", board.record.id));
+        }
+    }
+    errors
+}
+
+/// Refreshes the boards of `game_type`.
 pub fn refresh_game_type<S: HologramHost>(
     boards: &Mutex<BoardList<S::Handle>>,
     stats: &Mutex<Stats>,
     game_type: &str,
     host: &S,
 ) -> Vec<String> {
-    let lines = render_lines(game_type, &ranking_for(&lock(stats), game_type));
-    let mut list = lock(boards);
-    let mut errors = Vec::new();
-    for board in list
-        .boards
-        .iter_mut()
-        .filter(|b| b.record.game_type == game_type)
-    {
-        if let Err(error) = board.refresh(&lines, host) {
-            errors.push(format!("Board {}: {error}", board.record.id));
-        }
-    }
-    errors
+    refresh_boards(boards, stats, host, |board| {
+        board.record.game_type == game_type
+    })
 }
 
 #[cfg(test)]
@@ -206,18 +243,24 @@ pub(crate) mod tests {
         pub(crate) calls: RefCell<Vec<Call>>,
         pub(crate) fail_create: bool,
         pub(crate) fail_set_text: bool,
+        /// Worlds that are not loaded: `create` fails for them and `world_loaded` says no.
+        pub(crate) unloaded: Vec<&'static str>,
     }
 
     impl HologramHost for FakeHost {
         type Handle = u32;
 
         fn create(&self, world: &str, _: Position, text: &str) -> Result<u32, String> {
-            if self.fail_create {
+            if self.fail_create || !self.world_loaded(world) {
                 return Err("world not loaded".to_owned());
             }
             let mut calls = self.calls.borrow_mut();
             calls.push(Call::Create(world.to_owned(), text.to_owned()));
             Ok(u32::try_from(calls.len()).unwrap())
+        }
+
+        fn world_loaded(&self, world: &str) -> bool {
+            !self.unloaded.contains(&world)
         }
 
         fn set_text(&self, handle: u32, text: &str) -> Result<(), String> {
@@ -393,5 +436,27 @@ pub(crate) mod tests {
         assert_eq!(board.hologram, None);
         assert_eq!(host.calls.borrow().last(), Some(&Call::Remove(1)));
         assert_eq!(host.calls.borrow().len(), 2);
+    }
+
+    #[test]
+    fn a_refused_create_is_reported_once_until_it_succeeds() {
+        let mut host = FakeHost {
+            fail_create: true,
+            ..FakeHost::default()
+        };
+        let mut board = Board::new(record("a", "skywars"));
+        let rendered = lines(&["a"]);
+        assert_eq!(
+            board.refresh(&rendered, &host),
+            Err("world not loaded".to_owned())
+        );
+        assert_eq!(board.refresh(&rendered, &host), Ok(()));
+        assert_eq!(board.hologram, None);
+        host.fail_create = false;
+        board.refresh(&rendered, &host).unwrap();
+        assert_eq!(board.hologram, Some(1));
+        board.deactivate();
+        host.fail_create = true;
+        assert!(board.refresh(&rendered, &host).is_err());
     }
 }
