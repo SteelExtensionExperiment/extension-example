@@ -24,18 +24,20 @@ impl fmt::Display for StartupEvent {
 }
 
 /// Starts every configured template on the first tick and polls the loads on later ticks.
-pub struct Startup<H: HostWorlds> {
+///
+/// Generic over the operation handle only: the host is a short-lived borrow handed to each call.
+pub struct Startup<O> {
     started: bool,
-    loading: Vec<(String, H::Operation)>,
+    loading: Vec<(String, O)>,
 }
 
-impl<H: HostWorlds> Default for Startup<H> {
+impl<O> Default for Startup<O> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<H: HostWorlds> Startup<H> {
+impl<O> Startup<O> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -43,10 +45,16 @@ impl<H: HostWorlds> Startup<H> {
             loading: Vec::new(),
         }
     }
+}
 
+impl<O: Copy> Startup<O> {
     /// Runs once per server tick. The first call starts the loads and reports only immediate
     /// refusals; later calls poll each pending load until it completes.
-    pub fn tick(&mut self, host: &H, cloner: &Cloner) -> Vec<StartupEvent> {
+    pub fn tick<H: HostWorlds<Operation = O>>(
+        &mut self,
+        host: &H,
+        cloner: &Cloner,
+    ) -> Vec<StartupEvent> {
         if self.started {
             return self.poll(host);
         }
@@ -69,7 +77,7 @@ impl<H: HostWorlds> Startup<H> {
         events
     }
 
-    fn poll(&mut self, host: &H) -> Vec<StartupEvent> {
+    fn poll<H: HostWorlds<Operation = O>>(&mut self, host: &H) -> Vec<StartupEvent> {
         let mut events = Vec::new();
         for (template, operation) in std::mem::take(&mut self.loading) {
             match OpStatus::finished(host.operation_status(operation)) {

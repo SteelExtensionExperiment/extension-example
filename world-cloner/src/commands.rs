@@ -224,26 +224,29 @@ impl OperationKind {
 }
 
 /// An operation started by a command, kept until its result can be reported.
-pub struct PendingOperation<H: HostWorlds> {
-    pub operation: H::Operation,
+pub struct PendingOperation<O, P> {
+    pub operation: O,
     pub kind: OperationKind,
     pub key: String,
     /// The player to message; `None` when the sender is not a player.
-    pub reply_to: Option<H::Player>,
+    pub reply_to: Option<P>,
 }
 
 /// Reports the final result of command-started operations to the sender and the log.
-pub struct Reporter<H: HostWorlds> {
-    pending: Vec<PendingOperation<H>>,
+///
+/// Generic over the operation and player handles only: the host is a short-lived borrow handed to
+/// each call.
+pub struct Reporter<O, P> {
+    pending: Vec<PendingOperation<O, P>>,
 }
 
-impl<H: HostWorlds> Default for Reporter<H> {
+impl<O, P> Default for Reporter<O, P> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<H: HostWorlds> Reporter<H> {
+impl<O, P> Reporter<O, P> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -251,13 +254,15 @@ impl<H: HostWorlds> Reporter<H> {
         }
     }
 
-    pub fn track(&mut self, pending: PendingOperation<H>) {
+    pub fn track(&mut self, pending: PendingOperation<O, P>) {
         self.pending.push(pending);
     }
+}
 
+impl<O: Copy, P: Copy> Reporter<O, P> {
     /// Polls each tracked operation once, messages the sender of each one that finished, drops
     /// it, and returns one log line per finished operation.
-    pub fn poll(&mut self, host: &H) -> Vec<String> {
+    pub fn poll<H: HostWorlds<Operation = O, Player = P>>(&mut self, host: &H) -> Vec<String> {
         let mut lines = Vec::new();
         for pending in std::mem::take(&mut self.pending) {
             let Some(result) = OpStatus::finished(host.operation_status(pending.operation)) else {
@@ -307,7 +312,7 @@ pub fn list_templates<H: HostWorlds>(host: &H, cloner: &Cloner) -> String {
 pub fn start_clone<H: HostWorlds>(
     host: &H,
     cloner: &Cloner,
-    reporter: &mut Reporter<H>,
+    reporter: &mut Reporter<H::Operation, H::Player>,
     template: &str,
     key: &str,
     target: TargetKind,
@@ -342,7 +347,7 @@ pub fn start_clone<H: HostWorlds>(
 pub fn start_create<H: HostWorlds>(
     host: &H,
     cloner: &Cloner,
-    reporter: &mut Reporter<H>,
+    reporter: &mut Reporter<H::Operation, H::Player>,
     generator: &str,
     key: &str,
     target: TargetKind,
@@ -366,7 +371,7 @@ pub fn start_create<H: HostWorlds>(
 pub fn execute<H: HostWorlds>(
     host: &H,
     cloner: &Cloner,
-    reporter: &mut Reporter<H>,
+    reporter: &mut Reporter<H::Operation, H::Player>,
     request: Request,
     sender: Option<H::Player>,
 ) -> Result<String, String> {
@@ -394,7 +399,7 @@ pub fn execute<H: HostWorlds>(
 pub fn start_remove<H: HostWorlds>(
     host: &H,
     cloner: &Cloner,
-    reporter: &mut Reporter<H>,
+    reporter: &mut Reporter<H::Operation, H::Player>,
     key: &str,
     sender: Option<H::Player>,
 ) -> Result<String, String> {
@@ -512,7 +517,7 @@ mod tests {
         }
 
         fn track(
-            reporter: &mut Reporter<FakeHost>,
+            reporter: &mut Reporter<u32, u32>,
             operation: u32,
             kind: OperationKind,
             player: Option<u32>,
@@ -615,7 +620,7 @@ mod tests {
         #[test]
         fn immediate_refusals_are_returned_and_not_tracked() {
             let (host, cloner, mut reporter) = (host(), cloner(), Reporter::new());
-            let clone = |reporter: &mut Reporter<FakeHost>, template| {
+            let clone = |reporter: &mut Reporter<u32, u32>, template| {
                 start_clone(
                     &host,
                     &cloner,

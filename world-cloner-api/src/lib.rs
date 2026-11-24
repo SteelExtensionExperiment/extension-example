@@ -4,9 +4,7 @@
 //! with [`cloner`] and import `WorldClonerDyn as _` to call the methods.
 #![recursion_limit = "256"]
 
-mod host_prototype;
-
-pub use host_prototype::{CloneSettings, CloneTarget, TemplateState, TemplateStatus};
+pub use steel_extension_api::{CloneSettings, CloneTarget, TemplateState, TemplateStatus};
 
 use steel_extension_api::{
     ApiResult, Operation, Server, WorldSettings,

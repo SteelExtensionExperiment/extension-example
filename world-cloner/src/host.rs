@@ -2,9 +2,6 @@
 //!
 //! The logic is written against [`HostWorlds`] so it can be tested with a fake; `Operation` and
 //! `PlayerId` cannot be constructed outside the host API crate, hence the associated types.
-// TODO: implement `HostWorlds` for the host `Server` once host spec 005 bindings exist
-// (`load_world_template`, `world_template_status`, `clone_world`, `create_world`,
-// `remove_world`), then register the service and commands from `init`.
 
 use steel_extension_api::WorldSettings;
 use world_cloner_api::{CloneSettings, CloneTarget, TemplateStatus};
@@ -158,7 +155,15 @@ pub(crate) mod fake {
         type Player = u32;
 
         fn template_status(&self, key: &str) -> Option<TemplateStatus> {
-            self.statuses.borrow().get(key).cloned()
+            // `TemplateStatus` is a host type without `Clone`; rebuild it from its public fields.
+            self.statuses
+                .borrow()
+                .get(key)
+                .map(|status| TemplateStatus {
+                    state: status.state,
+                    message: status.message.as_str().into(),
+                    chunks: status.chunks,
+                })
         }
 
         fn load_template(&self, key: &str, path: &str) -> Result<u32, String> {

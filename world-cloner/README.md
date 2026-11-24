@@ -4,10 +4,11 @@ Steel extension: load saved Steel worlds into memory once and stamp out unlimite
 runtime worlds, for minigame servers. Exposes the versioned service `world-cloner:clone/v1` (crate
 [`world-cloner-api`](../world-cloner-api)) and `/worldcloner` admin commands.
 
-**Status:** the logic is complete and unit-tested against a small host interface (`HostWorlds`).
-It is not registered yet: the implementation for the host `Server`, service registration, command
-registration and tick wiring wait for host spec `005-world-templates` (see `specs/001-world-cloner/plan.md`,
-"Platform gap"). `world-cloner-api` defines the missing host types as prototype stand-ins.
+**Status:** wired to the host (spec `005-world-templates`): the service is registered in `init`,
+`/worldcloner` and the tick callback in `pre_init`. Unit tests run against a small host interface
+(`HostWorlds`); no live server run has been done yet, so the manual check in
+`specs/001-world-cloner/quickstart.md` is pending (see `specs/001-world-cloner/plan.md`,
+"Host 005 integration").
 
 ## Layout
 

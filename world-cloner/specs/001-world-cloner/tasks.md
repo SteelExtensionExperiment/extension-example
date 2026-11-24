@@ -38,7 +38,7 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 **Independent Test**: one valid and one missing template; the server starts, one Ready, one Failed (spec US1).
 
 - [x] T003 [P] [US1] Add `world-cloner/src/config.rs` (data-model) with parsing and validation per FR-002, and `init` wiring that stores the validated configuration and refuses to start on error. Tests: duplicate names, bad characters, an absolute path, a `..` path, an unknown game mode and a defaulted game mode each give the expected result and a message naming the entry. No host needed.
-- [x] T004 [US1] (logic and tests behind `HostWorlds`; real host calls and tick wiring pending host 005) Add startup loading in `world-cloner/src/lib.rs` and `src/startup.rs`: on the first server tick call the platform `load_world_template` for each template (host key `world-cloner:<name>`), keep the `Operation`s, poll them on later ticks once, and log each result. **Waits for platform T007 and T012.** Test: key building and the once-only result handling, with the host call behind a small seam so the logic is unit-testable.
+- [x] T004 [US1] Add startup loading in `world-cloner/src/lib.rs` and `src/startup.rs`: on the first server tick call the platform `load_world_template` for each template (host key `world-cloner:<name>`), keep the `Operation`s, poll them on later ticks once, and log each result. **Waits for platform T007 and T012.** Test: key building and the once-only result handling, with the host call behind a small seam so the logic is unit-testable.
 
 **Checkpoint**: US1 works; a server owner can see templates become Ready or Failed.
 
@@ -50,10 +50,10 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 
 **Independent Test**: a consumer requests one clone, one generated world and one removal and polls each to completion (spec US2).
 
-- [x] T005 [US2] (host types are prototype stand-ins in `host_prototype.rs`) Write the contract in `world-cloner-api/src/lib.rs` (data-model, [contracts/service.md](contracts/service.md)): `CLONER`, `TemplateInfo`, `CloneRequest`, `CreateRequest`, the `WorldCloner` trait, `DynWorldCloner` and `cloner()`. **Waits for platform T012** (types re-exported from `steel_extension_api::runtime`). Test: the key constant and a stabby layout check, as `../worldedit-api/src/lib.rs:81-97` does.
-- [x] T006 [US2] (behind `HostWorlds`; `impl` for `Server` and registration pending host 005) Implement `templates` and `clone_world` in `world-cloner/src/service.rs`, register the service in `init` with `services::register`, and map names to host keys, fill the template's default game mode, and fail immediately for unknown, Loading or Failed templates (FR-006). **Waits for platform T012.** Tests: the request mapping, the default game mode and each failure message, with the host call behind the same seam as T004. This is the first place a service method returns an `Operation`; the first real consumer or the manual check in [quickstart.md](quickstart.md) proves it (research R1).
-- [x] T007 [US2] (behind `HostWorlds`; `impl` for `Server` and registration pending host 005) Add the `create_world` service method in `world-cloner/src/service.rs`. **Waits for platform T015.** Test: the request is passed through with the full `WorldSettings`.
-- [x] T008 [US2] (behind `HostWorlds`; `impl` for `Server` and registration pending host 005) Add the `remove_world` service method in `world-cloner/src/service.rs`. **Waits for platform T018.** Test: the call is passed through.
+- [x] T005 [US2] Write the contract in `world-cloner-api/src/lib.rs` (data-model, [contracts/service.md](contracts/service.md)): `CLONER`, `TemplateInfo`, `CloneRequest`, `CreateRequest`, the `WorldCloner` trait, `DynWorldCloner` and `cloner()`. **Waits for platform T012** (types re-exported from `steel_extension_api::runtime`). Test: the key constant and a stabby layout check, as `../worldedit-api/src/lib.rs:81-97` does.
+- [x] T006 [US2] Implement `templates` and `clone_world` in `world-cloner/src/service.rs`, register the service in `init` with `services::register`, and map names to host keys, fill the template's default game mode, and fail immediately for unknown, Loading or Failed templates (FR-006). **Waits for platform T012.** Tests: the request mapping, the default game mode and each failure message, with the host call behind the same seam as T004. This is the first place a service method returns an `Operation`; the first real consumer or the manual check in [quickstart.md](quickstart.md) proves it (research R1).
+- [x] T007 [US2] Add the `create_world` service method in `world-cloner/src/service.rs`. **Waits for platform T015.** Test: the request is passed through with the full `WorldSettings`.
+- [x] T008 [US2] Add the `remove_world` service method in `world-cloner/src/service.rs`. **Waits for platform T018.** Test: the call is passed through.
 
 **Checkpoint**: the service is complete; the arena manager and game orchestrator can be implemented against it.
 
@@ -65,14 +65,14 @@ platform spec `specs/005-world-templates/` in the Steel checkout (the "platform"
 
 **Independent Test**: run each subcommand with and without permission (spec US3).
 
-- [ ] T009 [US3] (tree, parsing, handlers, reporter and `execute` done and tested in `src/commands.rs`; command registration pending host 005) Add `world-cloner/src/commands.rs` with `/worldcloner templates|clone|create|remove` ([contracts/commands.md](contracts/commands.md)), template-name suggestions, and the pending-operation reporter that messages the sender with `Server::message` and logs. Tests: syntax, permissions, suggestions, and the report path for success and failure.
+- [x] T009 [US3] Add `world-cloner/src/commands.rs` with `/worldcloner templates|clone|create|remove` ([contracts/commands.md](contracts/commands.md)), template-name suggestions, and the pending-operation reporter that messages the sender with `Server::message` and logs. Tests: syntax, permissions, suggestions, and the report path for success and failure.
 
 ---
 
 ## Phase 5: Polish & cross-cutting
 
 - [x] T010 [P] Write `world-cloner/README.md` and `world-cloner-api/README.md`: layout requirement (`SteelExtensionMC/extension-example/world-cloner/`), configuration, service, commands, and the rule that callers poll every `Operation`.
-- [ ] T011 [P] (clippy, fmt and typos clean for both crates; manual check pending host 005; O1 decided: no native test) Run `cargo clippy` and `cargo fmt --check` for both crates, `typos`, and the manual check in [quickstart.md](quickstart.md). Decide O1 (research R2) and add the native test if the decision calls for one.
+- [ ] T011 [P] (clippy, fmt and typos clean; O1 decided: no native test; the manual check is pending, no server was run) Run `cargo clippy` and `cargo fmt --check` for both crates, `typos`, and the manual check in [quickstart.md](quickstart.md). Decide O1 (research R2) and add the native test if the decision calls for one.
 
 ---
 
