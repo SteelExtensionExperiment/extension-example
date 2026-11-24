@@ -121,11 +121,24 @@ Decisions:
 - `MatchFinished` is emitted when the winner countdown ends, together with the arena release.
 - The allocator reuses only Ready worlds; worlds being created count toward `max_worlds`.
 
-Remaining blockers:
+Implemented since (2026-11-24): T008-T014 against the merged host specs 005 and 007 and `world-cloner-api`
+(`host.rs` seam with a test fake, `worlds.rs`, `transfer.rs`, `runtime.rs`, `service.rs`). The service
+`arena-manager:match/v1` is registered in `init`; `MatchFinished` / `MatchFailed` are emitted from the
+server tick after every lock is released. `/arena remove` refuses an arena with a match, `/arena template`
+checks the name against the `templates()` listing, and `/arena matches` exists.
 
-| Tasks | Waits for |
-| --- | --- |
-| T008, T010-T012 | `world-cloner-api` and the world-cloner service (host spec 005 T012 and T018). The `world-cloner-api` path dependency is not in `Cargo.toml` yet. |
-| T009, T013, T014 (the parts that create a world) | `world-cloner-api`. The kit field is done: `PlayerEntry.kit: InventorySnapshot` (host spec 007, merged), so `arena-manager:match/v1` is final. |
-| T016 | The manual check in `quickstart.md` needs the above; native test location (O1) is still open. |
-| `/arena remove` in-use check, `/arena matches` | Match runtime (T009/T010). |
+Verified by unit tests against a fake host (73 tests): allocation, match rules, world lifecycle, player
+step machines, the whole tick flow (start, place, death, respawn, countdown, result, cleanup, clone failure).
+
+**Not verified on a live server** (no native test exists, O1; every item below needs a running host with
+world-cloner and a template):
+
+- `RespawnEvent` firing in a state where `select_world` is accepted (R6). If not, record a host gap
+  (next spec number 008); do not work around it.
+- That `QuitEvent` does not fire for a domain switch, which would cancel every match at placement.
+- `teleport_to` right after `player_ready` when the destination chunk is not yet loaded (R4).
+- That `destroy_temporary_domain` after `remove_world` is the right order and enough (R7).
+- That `restore_inventory` in a temporary domain leaves the lobby inventory untouched (R5).
+- The quickstart manual check.
+
+Server tick rate is a private constant (20) in `runtime.rs`.
