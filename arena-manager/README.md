@@ -6,20 +6,11 @@ Contract crate: [`arena-manager-api`](../arena-manager-api/src/lib.rs). Spec:
 
 ## Status
 
-Implemented and unit tested: `config.toml`, `arenas.toml` storage and validation, the `/arena`
-commands, the arena and world allocator (`allocator.rs`) and the match state machine
-(`matches.rs`).
-
-Not implemented yet, each waiting on something outside this crate (see `specs/001-arena-manager/tasks.md`):
-
-- Starting matches, the death and quit handling in the live server, and moving players
-  (T008-T011): the world-cloner service, the host's death-screen behavior (research R6) and a tick-rate source.
-- World cleanup (T012): world-cloner remove service.
-- The `arena-manager:match/v1` service and the `MatchFinished` / `MatchFailed` actions (T009, T013,
-  T014): `PlayerEntry.kit` needs host spec 007. The contract is not final until then.
-
-The `world-cloner-api` dependency is not in `Cargo.toml` yet because that crate does not exist yet. The extension
-declares `depends: ["world-cloner"]`, so the host will not load it without that extension.
+Implemented: `config.toml` and `arenas.toml`, the `/arena` commands (including `matches`), the arena and
+world allocator, the match state machine, world creation and cleanup through `world-cloner`, player
+transfers and lobby returns, the `arena-manager:match/v1` service and the `MatchFinished` /
+`MatchFailed` actions. All of it is unit tested against a fake host (73 tests); **nothing has run on a
+live server yet**. The open points are listed in `specs/001-arena-manager/plan.md`.
 
 ## Layout
 
@@ -54,15 +45,18 @@ Each subcommand has its own permission node; without it the command is denied.
 | `/arena spawn list <gametype> <arena>` | `arena.list` |
 | `/arena template <gametype> <template>` | `arena.template` |
 | `/arena list` | `arena.list` |
+| `/arena matches` | `arena.matches` |
 | `/arena lobby set <survival\|creative\|adventure\|spectator>` (player only) | `arena.lobby` |
 
 Spawns are stored as coordinates only, without a world key: stand in a copy of the map when you set
-them. An arena is complete with contiguous slots 1..N, N at least 2. `/arena remove` does not yet
-refuse an arena that has a running match, and there is no `/arena matches` yet (no match runtime).
-`/arena create` creates the game type when it is new, and game types and templates are not validated against anything yet.
+them. An arena is complete with contiguous slots 1..N, N at least 2. `/arena remove` refuses an arena with a
+running match and `/arena matches` lists matches (`arena.matches`). `/arena template` checks the name
+against the `world-cloner` templates. `/arena create` creates the game type when it is new.
 
-## Caller rules (for the future service)
+## Caller rules (service `arena-manager:match/v1`)
 
 - Calls run on the server tick thread and never block.
 - Emit `MatchFinished` / `MatchFailed` only after releasing every lock.
-- World-cloner `Operation`s are polled on later ticks, never waited on.
+- Arena-manager polls its `world-cloner` `Operation`s on later ticks; callers never see them.
+- A capacity rejection is retried by the caller; arena-manager has no queue.
+- Requires a lobby (`/arena lobby set`), a template per game type and a Ready template.

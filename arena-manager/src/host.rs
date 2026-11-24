@@ -43,7 +43,6 @@ pub trait Host {
     fn operation_status(&self, operation: Self::Operation) -> Result<OperationStatus, String>;
 
     fn player_by_uuid(&self, uuid: Uuid) -> Option<Self::Player>;
-    fn player_uuid(&self, player: Self::Player) -> Uuid;
     fn player_name(&self, player: Self::Player) -> Result<String, String>;
     fn is_connected(&self, player: Self::Player) -> bool;
     /// Finished relocation and client loading.
@@ -122,10 +121,6 @@ impl Host for LiveHost<'_, '_> {
             OperationState::Ready => OperationStatus::Ready,
             OperationState::Failed => OperationStatus::Failed(status.value.to_string()),
         })
-    }
-
-    fn player_uuid(&self, player: PlayerId) -> Uuid {
-        player.uuid()
     }
 
     fn player_by_uuid(&self, uuid: Uuid) -> Option<PlayerId> {
@@ -312,12 +307,6 @@ pub mod fake {
                 .online
                 .contains(&player)
                 .then_some(player)
-        }
-
-        fn player_uuid(&self, player: Player) -> Uuid {
-            let mut bytes = [0; 16];
-            bytes[0] = player;
-            Uuid { bytes }
         }
 
         fn player_name(&self, player: Player) -> Result<String, String> {

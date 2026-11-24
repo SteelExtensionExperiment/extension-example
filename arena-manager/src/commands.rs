@@ -1,9 +1,11 @@
 //! The `/arena` command tree. Handlers read the sender, then call plain functions that map
 //! to store calls and build the reply, so they run without a host.
 use crate::{
+    host::{Host as _, LiveHost},
     state::{ARENAS_FILE, ArenaManager},
     store::{ArenaStore, Lobby, LobbyGameMode, Spawn},
 };
+use arena_manager_api::{MatchInfo, MatchState};
 use std::{fmt::Write as _, path::Path};
 use steel_extension_api::{
     Commands,
@@ -17,6 +19,7 @@ const PERMISSION_SPAWN: &str = "arena.spawn";
 const PERMISSION_TEMPLATE: &str = "arena.template";
 const PERMISSION_LIST: &str = "arena.list";
 const PERMISSION_LOBBY: &str = "arena.lobby";
+const PERMISSION_MATCHES: &str = "arena.matches";
 
 const PLAYER_ONLY: &str = "this command needs a player";
 
@@ -122,6 +125,41 @@ fn list(store: &ArenaStore) -> String {
     }
     text.truncate(text.trim_end().len());
     text
+}
+
+fn match_state_name(state: MatchState) -> &'static str {
+    match state {
+        MatchState::Preparing => "preparing",
+        MatchState::Starting => "starting",
+        MatchState::Running => "running",
+        MatchState::Ending => "ending",
+    }
+}
+
+fn matches_text(infos: &[MatchInfo]) -> String {
+    if infos.is_empty() {
+        return "no matches".to_owned();
+    }
+    let lines: Vec<String> = infos
+        .iter()
+        .map(|info| {
+            let alive = info.players.iter().filter(|player| player.alive).count();
+            let world = if info.world.is_empty() {
+                "no world yet"
+            } else {
+                info.world.as_str()
+            };
+            format!(
+                "#{} {}/{} in {world}: {}, {alive}/{} alive",
+                info.id,
+                info.game_type,
+                info.arena,
+                match_state_name(info.state),
+                info.players.len(),
+            )
+        })
+        .collect();
+    lines.join("\n")
 }
 
 fn list_spawns(store: &ArenaStore, game_type: &str, arena: &str) -> Result<String, String> {
@@ -240,6 +278,12 @@ pub fn register(commands: &mut Commands<'_>) -> Result<(), String> {
         .permission(PERMISSION_REMOVE)
         .then(game_type_arg().then(arena_arg().executes(|ctx| {
             let (game_type, arena) = arena_names(ctx)?;
+            let manager = ArenaManager::get()?;
+            // Held until the change is saved, so a match cannot start in between.
+            let runtime = manager.runtime();
+            if runtime.arena_in_use(&game_type, &arena) {
+                return Err(format!("arena {game_type}/{arena} has a running match"));
+            }
             mutate(ctx, |store| remove_arena(store, &game_type, &arena))
         })));
     let spawn = literal("spawn")
@@ -273,9 +317,21 @@ pub fn register(commands: &mut Commands<'_>) -> Result<(), String> {
             game_type_arg().then(argument("template", Arg::word()).executes(|ctx| {
                 let game_type = ctx.string("gametype")?;
                 let template = ctx.string("template")?;
+                let server = ctx.server();
+                let known = LiveHost { server: &server }.templates()?;
+                if !known.iter().any(|info| info.name == template) {
+                    return Err(format!("unknown template {template}"));
+                }
                 mutate(ctx, |store| set_template(store, &game_type, &template))
             })),
         );
+    let matches = literal("matches")
+        .permission(PERMISSION_MATCHES)
+        .executes(|ctx| {
+            let infos = ArenaManager::get()?.runtime().infos();
+            ctx.send(&matches_text(&infos));
+            Ok(1)
+        });
     let list = literal("list")
         .permission(PERMISSION_LIST)
         .executes(|ctx| read(ctx, |store| Ok(list(store))));
@@ -287,6 +343,7 @@ pub fn register(commands: &mut Commands<'_>) -> Result<(), String> {
             .then(spawn)
             .then(template)
             .then(list)
+            .then(matches)
             .then(literal("lobby").then(lobby_set_node)),
     )
 }
@@ -436,5 +493,28 @@ mod tests {
             "lobby set to 0.50 64.00 0.50 in lobby:main with game mode adventure"
         );
         assert!(store.lobby.is_some());
+    }
+
+    #[test]
+    fn matches_listing_shows_state_world_and_alive_players() {
+        use steel_extension_api::players::Uuid;
+        let player = |alive| arena_manager_api::MatchPlayer {
+            uuid: Uuid::default(),
+            alive,
+        };
+        let info = |world: &str| MatchInfo {
+            id: 7,
+            game_type: "duel".into(),
+            arena: "a".into(),
+            world: world.into(),
+            state: MatchState::Running,
+            players: [player(true), player(false)].into_iter().collect(),
+        };
+        assert_eq!(matches_text(&[]), "no matches");
+        assert_eq!(
+            matches_text(&[info("arena0:map")]),
+            "#7 duel/a in arena0:map: running, 1/2 alive"
+        );
+        assert!(matches_text(&[info("")]).contains("no world yet"));
     }
 }

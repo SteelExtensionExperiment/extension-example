@@ -39,24 +39,24 @@ description: "Task list for the Arena Manager extension (arenas, match flow, wor
 
 ## Phase 4: User Story 3 - Deaths and return (P1)
 
-- [ ] T008 [US3] `src/lib.rs` and `src/transfer.rs`: subscribe death and quit (enqueue only), drain once per server tick (research R8), return the dead player to the lobby with the lobby game mode, run the winner countdown with `send_title` or `send_action_bar` each second, then move the winner. **Waits for research R6** for the respawn screen; may need a host spec.
+- [x] T008 [US3] `src/lib.rs`, `src/runtime.rs` and `src/transfer.rs` (**host-unverified**, see plan.md): subscribe death and quit (enqueue only), drain once per server tick (research R8), return the dead player to the lobby with the lobby game mode, run the winner countdown with `send_title` or `send_action_bar` each second, then move the winner. **Waits for research R6** for the respawn screen; may need a host spec.
 
 ## Phase 5: User Story 2 - Matches and worlds (P1)
 
 **Independent Test**: limit 1, start one match (new world), second rejected, after the first ends a third succeeds (spec US2).
 
-- [ ] T009 [US2] (deferred) Match request intake: validate game type and players, reserve an arena, return a rejection or a match id. The reservation (`allocator.rs`) is done; the only success path that cannot run without world-cloner is `NewWorld`, and no world exists to reuse until one is cloned, so intake lands with T010.
-- [ ] T010 [US2] `src/worlds.rs`: clone the game type's template as `arena<n>:map` in a new temporary domain through `world-cloner:clone/v1` (`cloner()` lookup at use time), poll the `Operation`, mark the world ready or fail the match. **Waits for world-cloner T006.** Tests: key and domain counter never reused; failure releases the arena.
-- [ ] T011 [US2] `src/transfer.rs`: per-player steps from research R4 (switch domain, wait ready or timeout, teleport to the slot spawn, game mode, clear inventory, kit items). **Waits for world-cloner T006 and research R4 (teleport timing).** Kit type is **(deferred)**.
+- [x] T009 [US2] (deferred) Match request intake: validate game type and players, reserve an arena, return a rejection or a match id. The reservation (`allocator.rs`) is done; the only success path that cannot run without world-cloner is `NewWorld`, and no world exists to reuse until one is cloned, so intake lands with T010.
+- [x] T010 [US2] `src/worlds.rs`: clone the game type's template as `arena<n>:map` in a new temporary domain through `world-cloner:clone/v1` (`cloner()` lookup at use time), poll the `Operation`, mark the world ready or fail the match. **Waits for world-cloner T006.** Tests: key and domain counter never reused; failure releases the arena.
+- [x] T011 [US2] `src/transfer.rs`: per-player steps from research R4 (switch domain, wait ready or timeout, teleport to the slot spawn, game mode, clear inventory, kit items). **Waits for world-cloner T006 and research R4 (teleport timing).** Kit type is **(deferred)**.
 
 ## Phase 6: User Story 5 - Cleanup (P2)
 
-- [ ] T012 [US5] `src/worlds.rs`: when no arena of a world has a match, call world-cloner `remove_world`, poll, then `destroy_temporary_domain` and poll; log failures and retry next tick; count a world toward the cap until fully gone. **Waits for world-cloner T008 and research R7.**
+- [x] T012 [US5] `src/worlds.rs`: when no arena of a world has a match, call world-cloner `remove_world`, poll, then `destroy_temporary_domain` and poll; log failures and retry next tick; count a world toward the cap until fully gone. **Waits for world-cloner T008 and research R7.**
 
 ## Phase 7: User Story 4 - Listing and service (P2)
 
-- [ ] T013 [US4] (deferred) `src/service.rs` and `arena-manager-api`: start match, list matches, result listener, registered together with T009, since `start_match` is the service's one call that needs a world. Includes the `/arena matches` command.
-- [ ] T014 [US3] (deferred) Deliver one result per finished match to the listener, with the draw state, from the match runtime of T010.
+- [x] T013 [US4] (deferred) `src/service.rs` and `arena-manager-api`: start match, list matches, result listener, registered together with T009, since `start_match` is the service's one call that needs a world. Includes the `/arena matches` command.
+- [x] T014 [US3] (deferred) Deliver one result per finished match to the listener, with the draw state, from the match runtime of T010.
 
 ## Phase 8: Polish
 

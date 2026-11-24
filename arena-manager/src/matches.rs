@@ -101,6 +101,12 @@ impl<K: Copy + PartialEq> Match<K> {
         self.state
     }
 
+    /// Whether `player` is still in the match.
+    #[must_use]
+    pub fn is_alive(&self, player: K) -> bool {
+        self.players.iter().any(|p| p.key == player && p.alive)
+    }
+
     /// The arena world exists: `Preparing` -> `Starting`.
     pub fn world_ready(&mut self) {
         if self.state == State::Preparing {
