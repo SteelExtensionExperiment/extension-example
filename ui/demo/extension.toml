@@ -1,0 +1,11 @@
+[package]
+name = "steel-ui-demo"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libsteel_ui_demo.so"
+linux-aarch64 = "libsteel_ui_demo.so"
+macos-x86_64 = "libsteel_ui_demo.dylib"
+macos-aarch64 = "libsteel_ui_demo.dylib"
+windows-x86_64 = "steel_ui_demo.dll"
+windows-aarch64 = "steel_ui_demo.dll"

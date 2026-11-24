@@ -1,0 +1,11 @@
+[package]
+name = "steel-ui"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libsteel_ui_extension.so"
+linux-aarch64 = "libsteel_ui_extension.so"
+macos-x86_64 = "libsteel_ui_extension.dylib"
+macos-aarch64 = "libsteel_ui_extension.dylib"
+windows-x86_64 = "steel_ui_extension.dll"
+windows-aarch64 = "steel_ui_extension.dll"

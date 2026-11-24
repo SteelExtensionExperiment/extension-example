@@ -1,0 +1,22 @@
+[package]
+name = "steel-ui-extension"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[workspace]
+members = ["api", "macros", "demo"]
+resolver = "3"
+
+[workspace.dependencies]
+steel-extension-api = { path = "../../steel-extension-api" }
+steel-ui-api = { path = "api" }
+steel-ui-macros = { path = "macros" }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+steel-extension-api.workspace = true
+steel-ui-api.workspace = true
