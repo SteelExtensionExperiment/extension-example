@@ -102,11 +102,26 @@ Its crate reaches the API through `../../steel-extension-api`. The orchestrator 
 
 ## Platform and cross-extension dependencies
 
-| This task | Waits for |
-| --- | --- |
-| T006, T008, T009 (holograms) | Steel `specs/006-text-holograms/tasks.md` T007 (create, update, remove bindings) |
-| T007, T010, T011 (orchestrator) | The orchestrator spec adopting [contracts/required-orchestrator.md](contracts/required-orchestrator.md), and its `game-orchestrator-api` crate |
-| T001–T005 | Nothing |
+| This task | Waits for | Status |
+| --- | --- | --- |
+| T006, T008, T009 (holograms) | Steel `specs/006-text-holograms/` bindings | Host spec 006 merged (`e22f2e44`); done. |
+| T007, T010, T011 (orchestrator) | `game-orchestrator-api` | Done. `Draw` is ignored (user decision). |
+| T001–T005 | Nothing | Done. |
+
+### Platform gap: `<gametype>` completion
+
+`/statsboard place <id> <gametype>` should complete game types from the orchestrator
+(`complete_game_types`, `src/game_types.rs`), but `Games::game_types` needs a `Server<'_>` and a command
+suggester receives none: `SuggestionContext` and `SuggestionRequest` expose only the partial input,
+the player UUID and player names (`steel-extension-api/src/command/builder.rs`, `command/mod.rs`). Host fix
+needed: a `Server` accessor on the suggestion context. Until then `<gametype>` is not completed; `place`
+still validates the type. Completion of `remove <id>` works.
+
+### Behavior notes
+
+- A result is applied one tick after it arrives: the action handler has no `Server`, so validation runs in
+  `scheduler::run_later(1, ..)`.
+- Boards are restored one tick after `init` and one tick after a world loads, for the same reason.
 
 ## Complexity Tracking
 

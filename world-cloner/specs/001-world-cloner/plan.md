@@ -85,7 +85,11 @@ world-cloner/
     ├── lib.rs                # NEW export_extension!, init, tick
     ├── config.rs             # NEW configuration and validation
     ├── startup.rs            # NEW first-tick loading and result logging
-    ├── service.rs            # NEW service implementation
+    ├── service.rs            # NEW service logic against the seam
+    ├── host.rs               # NEW HostWorlds seam and the test fake
+    ├── server_host.rs        # NEW HostWorlds for the real host Server
+    ├── provider.rs           # NEW service object registered with services::register
+    ├── runtime.rs            # NEW shared state, command handler, server tick callback
     └── commands.rs           # NEW /worldcloner and the pending-operation reporter
 ```
 
@@ -106,6 +110,34 @@ This extension sits in `extension-example/` inside a Steel checkout, as `SteelEx
 | T004, T005, T006 | T012 (types, load, status, clone bindings), T007 (registry) |
 | T007 | T015 (`create_world` binding) |
 | T008 | T018 (`remove_world` binding) |
+
+## Host 005 integration (2026-11-24)
+
+Host 005 is merged and the extension is wired to it. The prototype host types are gone:
+`world-cloner-api` re-exports `TemplateState`, `TemplateStatus`, `CloneTarget` and `CloneSettings` from
+`steel_extension_api`. `TemplateStatus` and `CloneSettings` are not `Copy`, and `TemplateStatus` is not
+`Clone`; the code rebuilds values from public fields.
+
+Done:
+
+- `server_host.rs`: `ServerHost<'a>(Server<'a>)` implements `HostWorlds` with the real `Operation` and
+  `PlayerId` (`load_world_template`, `world_template_status`, `clone_world`, `create_world`,
+  `remove_world`, `operation_status`, `message`).
+- `Startup<O>` and `Reporter<O, P>` are generic over the handles only. Each tick has a fresh
+  `Server<'a>`, so the host is a per-call parameter and the state can live in a static.
+- `runtime.rs`: `OnceLock` state (`Cloner`, `Mutex<Startup>`, `Mutex<Reporter>`); the tick callback runs
+  `Startup::tick` and `Reporter::poll`, then logs with the locks released.
+- `lib.rs`: `pre_init` registers the command tree and the tick; `init` parses the configuration (an
+  error refuses to start), stores the state and registers the service (`provider.rs`).
+
+Lifecycle order, checked in `steel/src/lib.rs`: command registrars run at registration, before
+`initialize_all` calls `init`; command executors and suggestions run only after the server is built,
+which is after every `init`, and a failed `init` stops startup. The callbacks still read the state
+through `runtime()` and do nothing (command: error) while it is unset.
+
+Not verified: no server was run, so the manual check in `quickstart.md` and the first real
+service call from another extension (research R1) are pending. The host's fallback for an unset
+`default_game_mode` is unconfirmed; `Cloner::clone_world` fills it from the template explicitly.
 
 ## Complexity Tracking
 

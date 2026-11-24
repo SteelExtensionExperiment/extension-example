@@ -8,7 +8,7 @@ denied without it, from players and console alike where the host's permission ru
 | --- | --- | --- | --- |
 | `/worldcloner templates` | `worldcloner.templates` | Lists every configured template with its state and, for Failed, the message. | One line per template. |
 | `/worldcloner clone <template> <key> <new\|existing>` | `worldcloner.clone` | Clones the template as `<key>`. `new` makes a new temporary domain named by the key's domain part; `existing` adds to a loaded domain. | "Cloning…", then "World `<key>` is ready" or the failure. |
-| `/worldcloner create <generator> <key> <new\|existing>` | `worldcloner.create` | Creates a generated RAM world. | Same as `clone`. |
+| `/worldcloner create <generator> <key> <new\|existing>` | `worldcloner.create` | Creates a generated RAM world; its seed, spawn, game mode and difficulty come from the `[create]` section of `config.toml` (defaults in the data model). | Same as `clone`. |
 | `/worldcloner remove <key>` | `worldcloner.remove` | Removes one runtime world; players inside are moved out. | "Removing…", then "World `<key>` removed" or the failure. |
 
 ## Rules
@@ -29,3 +29,7 @@ denied without it, from players and console alike where the host's permission ru
 | Host refusal (key in use, domain missing, not removable, …) | The host's diagnostic, unchanged. |
 | Operation failed later | The operation's diagnostic. |
 | Missing permission | The host's standard denial. |
+
+## Syntax note (accepted 2026-11-24)
+
+Keys contain `:`, which the host's word and string arguments stop at, so after `<template>` the tree takes one greedy argument and the extension splits `<key>` and `<new|existing>` itself. `new` and `existing` do not tab-complete.

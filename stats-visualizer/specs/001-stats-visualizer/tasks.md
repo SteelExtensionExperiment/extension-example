@@ -25,16 +25,16 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `Cargo.toml` (own `[workspace]`, `[lib] crate-type = ["cdylib", "rlib"]`, path dependency `../../steel-extension-api`, `serde`, `toml`, lint table copied from `../worldedit/Cargo.toml`), `extension.toml` (`name = "stats-visualizer"`, `[targets]` for each platform library name), `clippy.toml`, and `src/lib.rs` with `export_extension!` in the long form (`name: "stats-visualizer"`, `depends: []` for now). **Do not add the orchestrator dependency yet; its crate does not exist (T007).**
+- [x] T001 Create `Cargo.toml` (own `[workspace]`, `[lib] crate-type = ["cdylib", "rlib"]`, path dependency `../../steel-extension-api`, `serde`, `toml`, lint table copied from `../worldedit/Cargo.toml`), `extension.toml` (`name = "stats-visualizer"`, `[targets]` for each platform library name), `clippy.toml`, and `src/lib.rs` with `export_extension!` in the long form (`name: "stats-visualizer"`, `depends: []` for now). **Do not add the orchestrator dependency yet; its crate does not exist (T007).**
 
 ---
 
 ## Phase 2: Foundational (no host or orchestrator needed)
 
-- [ ] T002 [P] [US1] Add `src/ranking.rs`: ranking per D6 and ratio per D1 as pure functions over a plain record list, plus the named top-size constant. Tests: ties on wins fall to W/L then name; 0 losses shows wins as the ratio; players with 0 wins are excluded; fewer than five entries; a huge count does not overflow; two-decimal formatting.
-- [ ] T003 [P] [US2] Add `src/stats.rs`: `Stats`, `PlayerRecord`, `GameRecord` (data-model) and `Stats::apply(result)` taking a plain result struct defined in this crate (mapped from the orchestrator type later, T007). Tests: wins and losses added per participant; name replaced; counters saturate; a duplicate UUID or a UUID in both groups rejects the whole result and changes nothing; dirty flag set only on success.
-- [ ] T004 [US3] Add `src/storage.rs`: load `stats.toml` and `boards.toml`, atomic save (temporary file, then rename), corrupt file moved to `*.toml.broken` with an error, missing file is an empty state. Tests: round trip; unreadable file moved aside and original bytes preserved; a failed rename leaves the old file intact; zero-count game tables are not written.
-- [ ] T005 [US3] Add `src/config.rs` and wire `lib.rs`: parse `config.toml` (`autosave_interval_ticks`, reject 0), load storage in `init`, `hooks.enable_scheduler()` plus `scheduler::run_repeating` saving only dirty files, and `hooks.on_shutdown` saving both (pattern `../../extension-example/essentials/src/lib.rs:27,44-51`). Tests: config defaults and the zero rejection; the dirty-flag decision of the autosave and shutdown paths behind a fake storage.
+- [x] T002 [P] [US1] Add `src/ranking.rs`: ranking per D6 and ratio per D1 as pure functions over a plain record list, plus the named top-size constant. Tests: ties on wins fall to W/L then name; 0 losses shows wins as the ratio; players with 0 wins are excluded; fewer than five entries; a huge count does not overflow; two-decimal formatting.
+- [x] T003 [P] [US2] Add `src/stats.rs`: `Stats`, `PlayerRecord`, `GameRecord` (data-model) and `Stats::apply(result)` taking a plain result struct defined in this crate (mapped from the orchestrator type later, T007). Tests: wins and losses added per participant; name replaced; counters saturate; a duplicate UUID or a UUID in both groups rejects the whole result and changes nothing; dirty flag set only on success.
+- [x] T004 [US3] Add `src/storage.rs`: load `stats.toml` and `boards.toml`, atomic save (temporary file, then rename), corrupt file moved to `*.toml.broken` with an error, missing file is an empty state. Tests: round trip; unreadable file moved aside and original bytes preserved; a failed rename leaves the old file intact; zero-count game tables are not written.
+- [x] T005 [US3] Add `src/config.rs` and wire `lib.rs`: parse `config.toml` (`autosave_interval_ticks`, reject 0), load storage in `init`, `hooks.enable_scheduler()` plus `scheduler::run_repeating` saving only dirty files, and `hooks.on_shutdown` saving both (pattern `../../extension-example/essentials/src/lib.rs:27,44-51`). Tests: config defaults and the zero rejection; the dirty-flag decision of the autosave and shutdown paths behind a fake storage.
 
 **Checkpoint**: stats and boards load, accumulate and save without any host hologram or orchestrator.
 
@@ -46,7 +46,7 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 **Independent Test**: record results for six players, place a board, read its lines (spec US1).
 
-- [ ] T006 [US1] Add `src/boards.rs`: `Board`, text rendering from ranking lines (title, `#rank Name wins W/L`, empty "no wins yet" line), create, update and remove through the host hologram bindings behind a trait, and `last_lines` to skip unchanged refreshes (FR-005). **Waits for spec 006 T007 (create, update, remove bindings).** Tests with a fake hologram host: rendering of full, partial and empty rankings; an unchanged ranking makes no host call; a changed one makes exactly one update; creation failure keeps the board saved and inactive.
+- [x] T006 [US1] Add `src/boards.rs`: `Board`, text rendering from ranking lines (title, `#rank Name wins W/L`, empty "no wins yet" line), create, update and remove through the host hologram bindings behind a trait, and `last_lines` to skip unchanged refreshes (FR-005). **Waits for spec 006 T007 (create, update, remove bindings).** Tests with a fake hologram host: rendering of full, partial and empty rankings; an unchanged ranking makes no host call; a changed one makes exactly one update; creation failure keeps the board saved and inactive.
 
 **Checkpoint**: a board renders and updates from stored stats.
 
@@ -58,8 +58,8 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 **Independent Test**: deliver a result and see counts and boards change (spec US2).
 
-- [ ] T007 [US2] Add the orchestrator dependency (`Cargo.toml` path dependency and `depends: ["game-orchestrator"]` in `export_extension!`) and `src/results.rs`: register the listener, map the orchestrator result to the crate's plain struct (T003), apply it, mark dirty, refresh boards of that game type only. **Waits for the orchestrator spec and its `game-orchestrator-api` crate (O3).** Tests: only boards of the result's game type refresh; a rejected result changes neither stats nor boards.
-- [ ] T008 [US3] Restore boards: on `init` and `on_world_load`, create each saved board's hologram if its world is loaded; on `on_world_unload`, mark boards of that world inactive (the host drops the holograms). A board whose world never appears stays saved. **Waits for spec 006 T007 (create, update, remove bindings).** Tests with fakes: boards of a loading world come back; others are untouched; a refused creation is logged once.
+- [x] T007 [US2] Add the orchestrator dependency (`Cargo.toml` path dependency and `depends: ["game-orchestrator"]` in `export_extension!`) and `src/results.rs`: register the listener, map the orchestrator result to the crate's plain struct (T003), apply it, mark dirty, refresh boards of that game type only. **Waits for the orchestrator spec and its `game-orchestrator-api` crate (O3).** Tests: only boards of the result's game type refresh; a rejected result changes neither stats nor boards.
+- [x] T008 [US3] Restore boards: on `init` and `on_world_load`, create each saved board's hologram if its world is loaded; on `on_world_unload`, mark boards of that world inactive (the host drops the holograms). A board whose world never appears stays saved. **Waits for spec 006 T007 (create, update, remove bindings).** Tests with fakes: boards of a loading world come back; others are untouched; a refused creation is logged once.
 
 ---
 
@@ -69,9 +69,9 @@ description: "Task list for the Stats Visualizer extension (ranking, storage, bo
 
 **Independent Test**: each subcommand with and without permission, player and console (spec US4).
 
-- [ ] T009 [US4] Add `src/commands.rs`: `/statsboard place|remove|list` ([contracts/commands.md](contracts/commands.md)) with permissions, id validation, player position and console coordinates, save on place and remove, completion of board ids. **Waits for spec 006 T007 (create, update, remove bindings).** Tests: syntax, permissions, id rules, duplicate id, console without coordinates, remove of an unknown id.
-- [ ] T010 [US4] Validate the game type against the orchestrator in `place` and complete `<gametype>` from its list. **Waits for the orchestrator contract (T007).** Tests with a fake game type source: unknown type rejected, known type accepted, completion lists the source's types.
-- [ ] T011 [US2] Reject a result for an unlisted game type with a log line, and mark boards of a vanished game type `unknown game type` in `list`. **Waits for T007.** Tests: both paths.
+- [x] T009 [US4] Add `src/commands.rs`: `/statsboard place|remove|list` ([contracts/commands.md](contracts/commands.md)) with permissions, id validation, player position and console coordinates, save on place and remove, completion of board ids. **Waits for spec 006 T007 (create, update, remove bindings).** Tests: syntax, permissions, id rules, duplicate id, console without coordinates, remove of an unknown id.
+- [ ] T010 [US4] Validate the game type against the orchestrator in `place` and complete `<gametype>` from its list. **Waits for the orchestrator contract (T007).** Tests with a fake game type source: unknown type rejected, known type accepted, completion lists the source's types. (validation done; completion of `<gametype>` blocked on a host gap, see plan.md)
+- [x] T011 [US2] Reject a result for an unlisted game type with a log line, and mark boards of a vanished game type `unknown game type` in `list`. **Waits for T007.** Tests: both paths.
 
 ---
 
