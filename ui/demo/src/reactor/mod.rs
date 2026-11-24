@@ -15,7 +15,7 @@ use steel_ui_api::labelled_item;
 mod gauges;
 mod layout;
 use gauges::{ENERGY_GAUGE, HEAT_GAUGE, LEVELS};
-use layout::{Action, METER_OFF, MODEL_PREFIX, slots};
+use layout::{Action, METER_OFF, slots};
 
 const TICKS_PER_FRAME: u64 = 3;
 
@@ -24,6 +24,7 @@ static SCREENS: LazyLock<Mutex<HashMap<PlayerId, Screen>>> = LazyLock::new(Mutex
 
 struct Screen {
     menu: u64,
+    assets: &'static str,
     packed: bool,
     charge: usize,
     cycle: Option<usize>,
@@ -31,8 +32,9 @@ struct Screen {
 
 pub(super) fn register_assets(registry: &mut ContentRegistry<'_>) -> Result<(), String> {
     layout::register_assets(registry)?;
-    ENERGY_GAUGE.register(registry)?;
-    HEAT_GAUGE.register(registry)
+    let assets = layout::asset_key()?;
+    ENERGY_GAUGE.register(registry, assets)?;
+    HEAT_GAUGE.register(registry, assets)
 }
 
 pub(super) fn init() -> Result<(), String> {
@@ -43,6 +45,7 @@ pub(super) fn init() -> Result<(), String> {
 
 pub(super) fn open(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
     let handler = HANDLER.get().copied().ok_or("Reactor is not initialized")?;
+    let assets = layout::asset_key()?;
     let packed = server
         .player_uses_resource_pack(player)
         .match_owned(Ok, |error| Err(error.to_string()))?;
@@ -50,7 +53,7 @@ pub(super) fn open(server: &Server<'_>, player: PlayerId) -> Result<(), String> 
         material(slots::FEED, "minecraft:raw_copper", "Raw copper", "Feed"),
         material(slots::FLUX, "minecraft:redstone", "Redstone", "Flux"),
         idle_core(),
-        output(false),
+        output(assets, false),
     ];
     if packed {
         initial.extend(ENERGY_GAUGE.clear().chain(HEAT_GAUGE.clear()));
@@ -60,6 +63,7 @@ pub(super) fn open(server: &Server<'_>, player: PlayerId) -> Result<(), String> 
         player,
         Screen {
             menu,
+            assets,
             packed,
             charge: 0,
             cycle: None,
@@ -130,7 +134,13 @@ impl Screen {
         if self.cycle.is_some_and(|frame| frame < LEVELS) {
             return updates;
         }
-        HEAT_GAUGE.update(&mut updates, self.cycle.unwrap_or_default(), 0, self.packed);
+        HEAT_GAUGE.update(
+            self.assets,
+            &mut updates,
+            self.cycle.unwrap_or_default(),
+            0,
+            self.packed,
+        );
         self.cycle = Some(0);
         updates.push(material(
             slots::CORE,
@@ -138,7 +148,7 @@ impl Screen {
             "Core active",
             "Refining copper",
         ));
-        updates.push(output(false));
+        updates.push(output(self.assets, false));
         updates
     }
 
@@ -146,15 +156,21 @@ impl Screen {
         let mut updates = ApiVec::new();
         let previous = self.charge;
         self.charge = (previous + 1) % (LEVELS + 1);
-        ENERGY_GAUGE.update(&mut updates, previous, self.charge, self.packed);
+        ENERGY_GAUGE.update(
+            self.assets,
+            &mut updates,
+            previous,
+            self.charge,
+            self.packed,
+        );
 
         if let Some(frame) = self.cycle.filter(|frame| *frame < LEVELS) {
             let next = frame + 1;
             self.cycle = Some(next);
-            HEAT_GAUGE.update(&mut updates, frame, next, self.packed);
+            HEAT_GAUGE.update(self.assets, &mut updates, frame, next, self.packed);
             if next == LEVELS {
                 updates.push(idle_core());
-                updates.push(output(true));
+                updates.push(output(self.assets, true));
             }
         }
         updates
@@ -177,7 +193,7 @@ fn idle_core() -> MenuItemUpdate {
     )
 }
 
-fn output(ready: bool) -> MenuItemUpdate {
+fn output(assets: &str, ready: bool) -> MenuItemUpdate {
     if ready {
         material(
             slots::OUTPUT,
@@ -188,7 +204,7 @@ fn output(ready: bool) -> MenuItemUpdate {
     } else {
         MenuItemUpdate {
             slot: slots::OUTPUT,
-            item: METER_OFF.item(MODEL_PREFIX, "Output pending", ""),
+            item: METER_OFF.item(assets, "Output pending", ""),
         }
     }
 }

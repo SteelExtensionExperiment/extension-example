@@ -43,7 +43,6 @@ const LIVE_TEXTURES: &[WidgetTexture] = &[CHARGE, CHARGE_PEAK, HEAT];
 
 rsx! {
     Menu {
-        namespace: "ui-demo",
         id: "reactor",
         title: "Pulse Reactor",
         rows: 4,

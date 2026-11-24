@@ -1,7 +1,7 @@
 # Creatures
 
-A separate capture-and-battle extension for an unmodified Minecraft client. It
-does not depend on the magic example or require a resource pack.
+A separate capture-and-battle extension for an unmodified Minecraft client.
+The optional server resource pack adds artwork to the party HUD.
 
 From the Steel repository root:
 
@@ -17,10 +17,13 @@ target health improves it further. A miss or failed attempt consumes the ball.
 Successful capture gives an occupied ball and adds the creature to the sidebar.
 The scoreboard shows the first three occupied party slots with their names, current/maximum
 health, ball grades and stored/deployed status. The six-slot party remains available
-through `/party`. With the magic example installed, mana appears in the same
-scoreboard through the shared HUD compositor.
+through `/party`. With the magic example installed, mana appears above the armor bar.
 Names are gold, health is green, and deployed status is aqua. The default
 scoreboard has no title label.
+Players who load the pack get five hearts alongside each HP readout and a
+badge showing the ball grade. The hearts follow current health. The server's
+[combined HUD layout](../../doc/extensions/examples/combined-hud.toml) adds
+hearts to its compact creature rows.
 Ball use has a four-domain-tick interval by default, coalescing vanilla
 entity-interaction/item-use packets from the same click.
 

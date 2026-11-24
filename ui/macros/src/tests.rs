@@ -65,7 +65,7 @@ fn image_sizes_reserve_rectangles_and_only_live_regions_can_update()
     let menu = resolve(
         r#"
         rsx! { Menu {
-            namespace: "demo", id: "images", title: "Images", rows: 2, theme: THEME,
+            id: "images", title: "Images", rows: 2, theme: THEME,
             Row {
                 index: 0,
                 Image { column: 1, size: (2, 2), live: GAUGE, tiles: FRAMES }

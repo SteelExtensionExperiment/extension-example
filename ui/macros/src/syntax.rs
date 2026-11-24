@@ -9,7 +9,6 @@ use syn::{
 use super::element::{Element, SlotSize};
 
 pub(super) struct Menu {
-    namespace: LitStr,
     id: LitStr,
     title: LitStr,
     rows: LitInt,
@@ -47,7 +46,6 @@ impl Parse for Menu {
         }
         let mut element = Element::parse_body(name, input)?;
         Ok(Self {
-            namespace: element.required("namespace")?,
             id: element.required("id")?,
             title: element.required("title")?,
             rows: element.required("rows")?,
@@ -146,7 +144,6 @@ impl Widget {
 }
 
 pub(super) struct ResolvedMenu {
-    pub namespace: String,
     pub id: String,
     pub title: String,
     pub theme: Expr,
@@ -174,13 +171,6 @@ pub(super) struct NamedSlots {
 
 impl Menu {
     pub(super) fn resolve(self) -> syn::Result<ResolvedMenu> {
-        let namespace = self.namespace.value();
-        if !valid_segment(&namespace) || namespace == "minecraft" {
-            return Err(Error::new_spanned(
-                &self.namespace,
-                "Menu namespace must be an extension namespace",
-            ));
-        }
         let id = self.id.value();
         if !valid_segment(&id) {
             return Err(Error::new_spanned(
@@ -235,7 +225,6 @@ impl Menu {
             ));
         }
         Ok(ResolvedMenu {
-            namespace,
             id,
             title,
             theme: self.theme,

@@ -1,10 +1,7 @@
 use steel_extension_api::{items::Glint, menus::MenuItemUpdate, stabby::vec::Vec as ApiVec};
 use steel_ui_api::{WidgetTexture, labelled_item};
 
-use crate::{
-    furnace::{MODEL_PREFIX, slots},
-    theme::FURNACE,
-};
+use crate::{furnace::slots, theme::FURNACE};
 
 pub(super) const TICKS_PER_FRAME: u64 = 5;
 const FRAMES_PER_PROGRESS_CELL: usize = 3;
@@ -68,9 +65,8 @@ const RECIPES: [Recipe; 6] = [
     },
 ];
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 enum Cycle {
-    #[default]
     Idle,
     Running(usize),
     Complete,
@@ -86,8 +82,8 @@ impl Cycle {
     }
 }
 
-#[derive(Default)]
 pub(super) struct Screen {
+    assets: &'static str,
     charge: usize,
     offset: usize,
     selected: usize,
@@ -95,6 +91,16 @@ pub(super) struct Screen {
 }
 
 impl Screen {
+    pub(super) const fn new(assets: &'static str) -> Self {
+        Self {
+            assets,
+            charge: 0,
+            offset: 0,
+            selected: 0,
+            cycle: Cycle::Idle,
+        }
+    }
+
     pub(super) fn initial(&self) -> ApiVec<MenuItemUpdate> {
         let mut updates = ApiVec::new();
         self.recipe_list(&mut updates);
@@ -111,7 +117,7 @@ impl Screen {
         for (index, slot) in ENERGY_SLOTS.into_iter().enumerate() {
             let next = energy_texture(self.charge, index);
             if next != energy_texture(previous, index) {
-                updates.push(textured_slot(slot, next, "Energy cell", ""));
+                updates.push(self.textured_slot(slot, next, "Energy cell", ""));
             }
         }
         if let Cycle::Running(frame) = self.cycle {
@@ -171,7 +177,7 @@ impl Screen {
     }
 
     fn energy_header(&self, updates: &mut ApiVec<MenuItemUpdate>) {
-        updates.push(textured_slot(
+        updates.push(self.textured_slot(
             slots::ENERGY_HEADER,
             FURNACE.power,
             "Energy",
@@ -203,7 +209,7 @@ impl Screen {
         let thumb = self.offset * (TRACK_SLOTS.len() - 1) / MAX_SCROLL;
         for (row, slot) in TRACK_SLOTS.into_iter().enumerate() {
             let active = row == thumb;
-            updates.push(textured_slot(
+            updates.push(self.textured_slot(
                 slot,
                 FURNACE.scroll[usize::from(active)],
                 if active { "Recipe list position" } else { " " },
@@ -235,7 +241,7 @@ impl Screen {
         for (index, slot) in PROGRESS_SLOTS.into_iter().enumerate() {
             let active = index < lit;
             if active != (index < previous) {
-                updates.push(textured_slot(
+                updates.push(self.textured_slot(
                     slot,
                     FURNACE.progress[usize::from(active)],
                     "Smelting progress",
@@ -251,7 +257,20 @@ impl Screen {
             Cycle::Running(_) => ("Smelting preview", RECIPES[self.selected].name),
             Cycle::Complete => ("Cycle complete", RECIPES[self.selected].name),
         };
-        textured_slot(slots::STATUS, FURNACE.status, name, tip)
+        self.textured_slot(slots::STATUS, FURNACE.status, name, tip)
+    }
+
+    fn textured_slot(
+        &self,
+        slot: i32,
+        texture: WidgetTexture,
+        label: &str,
+        tooltip: &str,
+    ) -> MenuItemUpdate {
+        MenuItemUpdate {
+            item: texture.item(self.assets, label, tooltip),
+            slot,
+        }
     }
 }
 
@@ -262,12 +281,5 @@ fn energy_texture(charge: usize, index: usize) -> WidgetTexture {
         FURNACE.energy[2]
     } else {
         FURNACE.energy[1]
-    }
-}
-
-fn textured_slot(slot: i32, texture: WidgetTexture, label: &str, tooltip: &str) -> MenuItemUpdate {
-    MenuItemUpdate {
-        item: texture.item(MODEL_PREFIX, label, tooltip),
-        slot,
     }
 }

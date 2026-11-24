@@ -4,7 +4,6 @@ use super::theme::{FURNACE, LIVE_TEXTURES};
 
 rsx! {
     Menu {
-        namespace: "ui-demo",
         id: "furnace",
         title: "Electric Furnace",
         rows: 6,

@@ -1,8 +1,8 @@
 # Magic
 
 An independent wand, spell menu and mana scoreboard for an unmodified Minecraft
-client, without a resource pack. It does not import or communicate with the
-creatures example. Both use Steel's shared data and HUD APIs.
+client. The optional server pack adds a textured mana meter. The magic and
+creatures examples use Steel's shared data and HUD APIs independently.
 
 From the Steel repository root:
 
@@ -72,11 +72,10 @@ The current-domain player compound is public:
 
 HUD source `magic-example:default` exports `player_mana` as a gauge alias and
 `player_max_mana` as its capacity. It contributes current/maximum mana and a
-20-character blue meter to the shared sidebar scoreboard, with an aqua mana
-label and no title label. When the creatures example
-is installed, both sections appear together without either extension importing
-the other. The owner can use `${player_mana}` and `${bar(player_mana, 20)}` in other HUD
-surfaces. Dependency fields are preserved. See the host's
+20-segment meter above the armor bar. The meter uses bitmap glyphs for clients
+that loaded the server pack and blue text segments for other clients. Vanilla
+action-bar messages temporarily replace it. The owner can use `${player_mana}`
+and `${bar(player_mana, 20)}` in other HUD surfaces. See the host's
 [player data and HUD guide](../../doc/extensions/player-data-and-hud.md).
 
 ## Verification
@@ -89,4 +88,5 @@ cargo test -p steel-extension-api --features host --lib host::creatures_and_magi
 
 The integration test loads both extension ZIPs together and exercises all nine
 spells, capture, independent HUD updates and dependency edits through a real
-server and vanilla packet handlers.
+server and vanilla packet handlers. It checks the mana meter with and without
+the pack.

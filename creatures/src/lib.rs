@@ -1,4 +1,4 @@
-//! Independent capture/battle example. No client mod, resource pack or magic dependency.
+//! Independent capture and battle example with an optional resource-pack HUD.
 #![recursion_limit = "512"]
 mod balls;
 mod battle;
@@ -47,6 +47,7 @@ fn report_error(server: &Server<'_>, player: PlayerId, error: String) {
 
 fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
     api(hooks.register_content_registration(balls::register))?;
+    api(hooks.register_content_registration(data::register_sprites))?;
     hooks.subscribe_interact(EventPriority::Normal, true, interact, 0);
     hooks.subscribe_interact_entity(EventPriority::Normal, true, interact_entity, 0);
     hooks.on_server_tick(|server, tick| {

@@ -6,7 +6,7 @@ use steel_extension_api::{
 };
 use steel_ui_api::{WidgetTexture, labelled_item};
 
-use super::layout::{CHARGE, CHARGE_PEAK, HEAT, METER_OFF, MODEL_PREFIX, slots};
+use super::layout::{CHARGE, CHARGE_PEAK, HEAT, METER_OFF, slots};
 
 pub(super) const LEVELS: usize = 15;
 const TRACK_HEIGHT: i32 = 45;
@@ -41,10 +41,12 @@ pub(super) struct Gauge {
 }
 
 impl Gauge {
-    pub(super) fn register(&self, registry: &mut ContentRegistry<'_>) -> Result<(), String> {
-        let (namespace, path) = MODEL_PREFIX
-            .split_once(':')
-            .ok_or("missing reactor namespace")?;
+    pub(super) fn register(
+        &self,
+        registry: &mut ContentRegistry<'_>,
+        assets: &str,
+    ) -> Result<(), String> {
+        let (namespace, path) = assets.split_once(':').ok_or("missing reactor namespace")?;
         let texture = format!("{path}/{}", self.name);
         registry
             .add_resource_asset(
@@ -113,6 +115,7 @@ impl Gauge {
 
     pub(super) fn update(
         &self,
+        assets: &str,
         updates: &mut ApiVec<MenuItemUpdate>,
         from: usize,
         to: usize,
@@ -125,7 +128,7 @@ impl Gauge {
             let item = if to == 0 {
                 ItemSpec::empty()
             } else {
-                let key = format!("{MODEL_PREFIX}/{}-{to}", self.name);
+                let key = format!("{assets}/{}-{to}", self.name);
                 labelled_item(&key, self.label, "")
             };
             updates.push(MenuItemUpdate {
@@ -141,7 +144,7 @@ impl Gauge {
             if texture != self.segment(previous, index) {
                 updates.push(MenuItemUpdate {
                     slot,
-                    item: texture.item(MODEL_PREFIX, self.label, ""),
+                    item: texture.item(assets, self.label, ""),
                 });
             }
         }

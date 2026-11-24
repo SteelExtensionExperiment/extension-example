@@ -29,6 +29,7 @@ pub fn rsx(input: TokenStream) -> TokenStream {
 }
 
 fn rust(menu: &ResolvedMenu) -> Tokens {
+    let id = &menu.id;
     let title = &menu.title;
     let theme = &menu.theme;
     let frames = menu
@@ -36,7 +37,7 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
         .as_ref()
         .map_or_else(|| quote!(&[]), |frames| quote!(#frames));
     let rows = menu.rows;
-    let prefix = format!("{}:ui/{}", menu.namespace, menu.id);
+    let asset_key = Ident::new("__STEEL_UI_ASSET_KEY", Span::mixed_site());
     let theme_const = Ident::new("__STEEL_UI_THEME", Span::mixed_site());
     let textures_const = Ident::new("__STEEL_UI_TEXTURES", Span::mixed_site());
     let frames_const = Ident::new("__STEEL_UI_FRAMES", Span::mixed_site());
@@ -45,10 +46,10 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
             let name = Ident::new("__STEEL_UI_SKIN", Span::mixed_site());
             (
                 quote!(const #name: ::steel_ui_api::ContainerSkin = #skin;),
-                quote!(#name.register(registry, MODEL_PREFIX, #rows)?;),
+                quote!(#name.register(registry, &key, #rows)?;),
                 quote! {
-                    let mut rendered = ::steel_ui_api::render(menu())?;
-                    #name.apply(&mut rendered, server, player, MODEL_PREFIX)?;
+                    let mut rendered = ::steel_ui_api::render(menu()?)?;
+                    #name.apply(&mut rendered, server, player, asset_key()?)?;
                     Ok(rendered)
                 },
             )
@@ -58,7 +59,7 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
             Tokens::new(),
             quote! {
                 let _ = (server, player);
-                ::steel_ui_api::render(menu())
+                ::steel_ui_api::render(menu()?)
             },
         ),
     };
@@ -70,7 +71,7 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
         quote! {
             ::steel_ui_api::Cell {
                 slot: #slot,
-                icon: #textures_const[#index].icon(#prefix).into(),
+                icon: #textures_const[#index].icon(key).into(),
                 label: #label.into(),
                 tooltip: #tooltip.into(),
             }
@@ -114,7 +115,13 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
         const LIVE_SLOTS: &[i32] = &[#(#live_slots,)*];
         #skin_const
 
-        pub const MODEL_PREFIX: &str = #prefix;
+        static #asset_key: ::std::sync::OnceLock<String> = ::std::sync::OnceLock::new();
+
+        /// Extension-owned key used to register the assets of this menu.
+        pub fn asset_key() -> Result<&'static str, String> {
+            #asset_key.get().map(String::as_str)
+                .ok_or_else(|| format!("menu {:?} assets have not been registered", #id))
+        }
 
         pub mod slots {
             #(#named_slots)*
@@ -128,12 +135,16 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
         pub fn register_assets(
             registry: &mut ::steel_extension_api::content::ContentRegistry<'_>,
         ) -> Result<(), String> {
+            let key = registry.claim_menu_assets(#id.into())
+                .match_owned(Ok, |error| Err(error.to_string()))?
+                .to_string();
             #register_skin
             ::steel_ui_api::register_textures(
                 registry,
-                MODEL_PREFIX,
+                &key,
                 #textures_const.iter().chain(#frames_const).copied(),
-            )
+            )?;
+            #asset_key.set(key).map_err(|key| format!("menu assets already registered for {key}"))
         }
 
         pub fn render(
@@ -143,13 +154,14 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
             #render_body
         }
 
-        pub fn menu() -> ::steel_ui_api::Menu {
-            ::steel_ui_api::Menu {
+        pub fn menu() -> Result<::steel_ui_api::Menu, String> {
+            let key = asset_key()?;
+            Ok(::steel_ui_api::Menu {
                 title: #title.into(),
                 title_color: #theme_const.title_color,
                 rows: #rows,
                 cells: vec![#(#cells,)*].into_iter().collect(),
-            }
+            })
         }
 
         pub fn open(

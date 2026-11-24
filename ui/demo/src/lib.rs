@@ -80,7 +80,7 @@ fn open(command: Command<'_>, action: Str<'_>) -> ApiResult<i32> {
 
 fn open_furnace(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
     let handler = MENU.get().copied().ok_or("UI demo is not initialized")?;
-    let state = Screen::default();
+    let state = Screen::new(furnace::asset_key()?);
     let menu = furnace::open_with(server, player, handler, state.initial())?;
     SCREENS.lock().insert(player, ActiveScreen { menu, state });
     Ok(())

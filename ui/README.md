@@ -50,7 +50,6 @@ const ENERGY_EMPTY: WidgetTexture = WidgetTexture {
 
 rsx! {
     Menu {
-        namespace: "my-game",
         id: "lobby",
         title: "Lobby",
         rows: 3,
@@ -70,6 +69,12 @@ and `(2, 2)` are valid if they fit in the nine-column grid and do not overlap
 another widget. Every slot of a button triggers the same `action`. `image`
 repeats one icon across the region. `tiles` accepts an array of images in
 row order with exactly one image per slot.
+
+`id` is local to the extension. During `register_assets`, Steel reserves
+`<extension-name>:ui/<id>` for the skin, widget models, and animation frames.
+Two extensions can both declare `lobby`. A second `lobby` in the same extension
+is a registration error. Use the generated `asset_key()` after registration to
+derive keys for any additional artwork belonging to that menu.
 
 Placement, size, and click actions are fixed. A widget's item and image are
 also fixed by default. Add `live: NAME` to let `open_with` and `update` change

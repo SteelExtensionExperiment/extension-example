@@ -40,12 +40,16 @@ fn source() -> Result<Source, String> {
 
 #[stabby::export(callback)]
 fn register(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
-    registry.register_item(ItemDefinition {
-        key: WAND.into(),
-        name: "Spell wand".into(),
-        max_stack_size: 1,
-        appearance: ItemAppearance::new("minecraft:blaze_rod").with_model(WAND),
-    })
+    let result = (|| {
+        state::MANA_SPRITES.register(&mut registry)?;
+        api(registry.register_item(ItemDefinition {
+            key: WAND.into(),
+            name: "Spell wand".into(),
+            max_stack_size: 1,
+            appearance: ItemAppearance::new("minecraft:blaze_rod").with_model(WAND),
+        }))
+    })();
+    result.map_err(Into::into).into()
 }
 fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
     api(hooks.register_content_registration(register))?;
