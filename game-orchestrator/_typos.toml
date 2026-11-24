@@ -1,0 +1,3 @@
+# "queueing" is the wording of the commands contract.
+[default.extend-words]
+queueing = "queueing"

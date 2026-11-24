@@ -1,0 +1,11 @@
+[package]
+name = "game-orchestrator"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libgame_orchestrator.so"
+linux-aarch64 = "libgame_orchestrator.so"
+macos-x86_64 = "libgame_orchestrator.dylib"
+macos-aarch64 = "libgame_orchestrator.dylib"
+windows-x86_64 = "game_orchestrator.dll"
+windows-aarch64 = "game_orchestrator.dll"
