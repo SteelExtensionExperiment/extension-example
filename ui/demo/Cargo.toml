@@ -1,0 +1,15 @@
+[package]
+name = "steel-ui-demo"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+parking_lot = "0.13.0"
+steel-extension-api.workspace = true
+steel-ui-api.workspace = true
+steel-ui-macros.workspace = true

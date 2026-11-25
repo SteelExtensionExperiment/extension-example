@@ -1,10 +1,23 @@
 use crate::{api, config, source};
-use steel_extension_api::{PlayerId, Server, data::Value};
+use steel_extension_api::{
+    PlayerId, Server,
+    data::Value,
+    hud::{HudSprites, HudText},
+    text::Text,
+};
 
 pub const MANA: &str = "magic:state/mana/current";
 pub const MAXIMUM: &str = "magic:state/mana/maximum";
 pub const PROJECTILE: &str = "magic:state/protection/projectile_until";
 pub const PHYSICAL: &str = "magic:state/protection/physical_until";
+
+pub const MANA_SPRITES: HudSprites<'static> =
+    HudSprites::new("magic:hud/mana").with_gauge_strip("magic:hud/mana.png");
+const MANA_SEGMENTS: u16 = 20;
+
+// The action bar centers its full text width. Vanilla spaces are four GUI pixels
+// wide, so this trailing padding moves the visible center 50 pixels toward armor.
+const ARMOR_ALIGNMENT_SPACES: usize = 25;
 
 pub fn number(server: &Server<'_>, player: PlayerId, path: &str) -> Result<f64, String> {
     let data = api(server.player_data(player))?;
@@ -24,18 +37,17 @@ pub fn initialize(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
     Ok(())
 }
 pub fn publish(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
-    api(source()?.set_sidebar(
-        server,
-        player,
-        "".into(),
-        [
-            r#"{"text":"Mana: ${player_mana}/${player_max_mana}","color":"aqua","bold":true}"#,
-            r#"{"text":"${bar(player_mana, 20)}","color":"blue"}"#,
-        ]
-        .into_iter()
-        .map(Into::into)
-        .collect(),
-    ))
+    let meter = MANA_SPRITES.gauge("player_mana", MANA_SEGMENTS)?;
+    let line = |meter| {
+        Text::new("Mana: ${player_mana}/${player_max_mana} ")
+            .color("aqua")
+            .append(meter)
+            .append(Text::new(" ".repeat(ARMOR_ALIGNMENT_SPACES)))
+            .to_json()
+    };
+    let template = HudText::new(&line(meter.vanilla().color("blue")))
+        .with_resource_pack(&line(meter.packed()));
+    api(source()?.set_action_bar(server, player, template))
 }
 fn update(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
     initialize(server, player)?;

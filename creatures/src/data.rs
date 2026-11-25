@@ -1,10 +1,26 @@
 use super::{api, balls, source};
 use steel_extension_api::{
-    PlayerId, Server, data::Value, hud::Source, items::ItemSpec, stabby::vec::Vec,
+    PlayerId, Server,
+    data::Value,
+    hud::{HudIcon, HudSprites, HudText, Source},
+    items::ItemSpec,
+    stabby::vec::Vec,
+    text::Text,
 };
 
 pub const PARTY: usize = 6;
 const SIDEBAR_CREATURES: usize = 3;
+const HEALTH_HEARTS: u16 = 5;
+pub const PARTY_SPRITES: HudSprites<'static> = HudSprites::new("creatures:hud/party")
+    .with_gauge_sprites(
+        "minecraft:gui/sprites/hud/heart/full.png",
+        "minecraft:gui/sprites/hud/heart/container.png",
+    )
+    .with_icons(&[
+        HudIcon::new(balls::KEYS[0], "creatures:item/poke_ball.png"),
+        HudIcon::new(balls::KEYS[1], "creatures:item/super_ball.png"),
+        HudIcon::new(balls::KEYS[2], "creatures:item/hyper_ball.png"),
+    ]);
 pub const THROW_AFTER: &str = "creatures:state/throw_after";
 
 /// Vanilla can send entity-interaction followed by item-use for one click.
@@ -108,7 +124,9 @@ pub fn bind(source: Source) -> Result<(), String> {
 pub fn hud(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
     let deployed = api(server.stored_entity_instances(player))?;
     let mut lines = Vec::new();
-    lines.push(r#"{"text":"Your team","color":"gold","bold":true}"#.into());
+    lines.push(HudText::new(
+        r#"{"text":"Your team","color":"gold","bold":true}"#,
+    ));
     let mut shown = 0;
     for slot in 0..PARTY {
         if read(server, player, &path(slot))?.is_none() {
@@ -130,13 +148,33 @@ pub fn hud(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
             ("In ball", "gray")
         };
         let index = slot + 1;
-        lines.push(format!(r#"{{"text":"{index}. ${{creature_{index}}}","color":"gold"}}"#).into());
+        lines.push(HudText::new(
+            &Text::new(format!("{index}. ${{creature_{index}}}"))
+                .color("gold")
+                .to_json(),
+        ));
+        let health = Text::new(format!(
+            "HP: ${{creature_{index}_health}}/${{creature_{index}_max_health}}"
+        ))
+        .color("green");
+        let health_template = HudText::new(&health.to_json());
+        let hearts = PARTY_SPRITES
+            .gauge(&format!("creature_{index}_health"), HEALTH_HEARTS)?
+            .packed();
         lines.push(
-            format!(r#"{{"text":"HP: ${{creature_{index}_health}}/${{creature_{index}_max_health}}","color":"green"}}"#).into(),
+            health_template
+                .with_resource_pack(&health.append(Text::new(" ")).append(hearts).to_json()),
         );
-        lines.push(format!(r#"{{"text":"{ball} · {status}","color":"{color}"}}"#).into());
+
+        let status = format!("{ball} · {status}");
+        let status_template = HudText::new(&Text::new(&status).color(color).to_json());
+        let badge = PARTY_SPRITES.icon(balls::KEYS[grade])?;
+        let packed_status = Text::new("")
+            .append(badge)
+            .append(Text::new(format!(" {status}")).color(color));
+        lines.push(status_template.with_resource_pack(&packed_status.to_json()));
     }
-    api(source()?.set_sidebar(server, player, "".into(), lines))
+    api(source()?.set_sidebar_with_pack(server, player, HudText::new(""), lines))
 }
 fn update(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
     api(server.synchronize_stored_entities(player))?;

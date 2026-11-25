@@ -15,11 +15,13 @@ with `depends`/`soft_depends` so Steel loads them in order. Spleef uses the
 | Creatures | Throw textured balls, capture native mobs, deploy nonlethal battles, and publish a party scoreboard. | [Build and use](creatures/README.md) |
 | Magic | Cast nine wand spells with shared mana data, temporary terrain, protection and a colored scoreboard mana meter. | [Build and use](magic/README.md) |
 | Furniture | Add a usable chair, vertical half slabs for all vanilla slab materials, and custom bed with sleeping and respawn. | [Build and use](furniture/README.md) |
+| Bulk Chest | Build hollow multiblock chests with shared, paged inventories. | [Build and use](bulk-chest/README.md) |
 | Game of Life | Advance a configured block board through a world-tick callback. | [Build and use](game-of-life/README.md) |
 | Strange terrain | Register seeded floating-island, shell, and pillar terrain. | [Build and use](strange-terrain/README.md) |
 | Toxic wasteland | A poisonous green sludge fluid shown as tinted water, its biome, a generated wasteland with sludge lakes, and `/toxic` paint/pour/drain tools. | [Build and use](toxic-wasteland/README.md) |
 | Minigame | Share temporary lobbies, arenas, transfers, and cleanup across games. | [Build and use](minigame/README.md) |
 | Spleef | Run a minigame with commands, temporary worlds, bots, and player restoration. | [Build and use](spleef/README.md) |
+| Steel UI | Compile declarative vanilla menus with shared themes, generated textures, and vanilla item fallbacks. | [Build and use](ui/README.md) |
 | Actions and filters | Run a custom score through ordered filters in two libraries, then observe an action. | [Build and use](hooks-and-filters/README.md) |
 | Vault | Economy, permission and chat service contracts other extensions use, like Bukkit's Vault. | [Build and use](vault/README.md) |
 | Essentials | Homes, warps, spawn, teleport requests, kits, economy and chat formatting (EssentialsX core). | [Build and use](essentials/README.md) |
@@ -46,6 +48,7 @@ SteelExtensionMC/
     ├── strange-terrain/
     ├── minigame-api/, minigame/
     ├── spleef/
+    ├── ui/
     ├── hooks-and-filters/
     ├── vault-api/, vault/, essentials/
     ├── worldedit-api/, worldedit/, worldguard/
@@ -67,6 +70,7 @@ cargo build --manifest-path extension-example/game-of-life/Cargo.toml --release
 cargo build --manifest-path extension-example/strange-terrain/Cargo.toml --release
 cargo build --manifest-path extension-example/minigame/Cargo.toml --release
 cargo build --manifest-path extension-example/spleef/Cargo.toml --release
+cargo build --manifest-path extension-example/ui/Cargo.toml --workspace --release
 cargo build --manifest-path extension-example/hooks-and-filters/Cargo.toml --release
 for crate in vault essentials worldedit worldguard prison-mines prison-enchants; do
     cargo build --manifest-path extension-example/$crate/Cargo.toml --release

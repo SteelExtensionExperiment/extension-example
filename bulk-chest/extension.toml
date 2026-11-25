@@ -1,0 +1,11 @@
+[package]
+name = "bulk-chest"
+version = "0.1.0"
+
+[targets]
+linux-x86_64 = "libbulk_chest.so"
+linux-aarch64 = "libbulk_chest.so"
+macos-x86_64 = "libbulk_chest.dylib"
+macos-aarch64 = "libbulk_chest.dylib"
+windows-x86_64 = "bulk_chest.dll"
+windows-aarch64 = "bulk_chest.dll"
