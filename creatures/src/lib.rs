@@ -46,8 +46,8 @@ fn report_error(server: &Server<'_>, player: PlayerId, error: String) {
 }
 
 fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
-    api(hooks.register_content_registration(balls::register))?;
-    api(hooks.register_content_registration(data::register_sprites))?;
+    hooks.on_content(balls::register)?;
+    hooks.on_content(|registry| data::PARTY_SPRITES.register(registry))?;
     hooks.subscribe_interact(EventPriority::Normal, true, interact, 0);
     hooks.subscribe_interact_entity(EventPriority::Normal, true, interact_entity, 0);
     hooks.on_server_tick(|server, tick| {

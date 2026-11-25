@@ -132,6 +132,54 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
             #(#variants,)*
         }
 
+        #[derive(Clone, Copy)]
+        pub struct Handler(::steel_extension_api::menus::MenuHandler);
+
+        /// Registers a callback for this menu's declared actions.
+        pub fn handler(
+            callback: impl Fn(&::steel_extension_api::Server<'_>, Session, Action)
+                + Send + Sync + 'static,
+        ) -> Handler {
+            Handler(::steel_extension_api::menus::handler(move |server, click| {
+                if let Some(action) = action(click) {
+                    callback(server, Session { player: click.player, id: click.menu }, action);
+                }
+            }))
+        }
+
+        /// The particular open view of this menu for one player.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub struct Session {
+            player: ::steel_extension_api::PlayerId,
+            id: u64,
+        }
+
+        impl Session {
+            pub const fn player(self) -> ::steel_extension_api::PlayerId {
+                self.player
+            }
+
+            /// Changes the live slots of this view. Returns false if it is no longer open.
+            pub fn update(
+                self,
+                server: &::steel_extension_api::Server<'_>,
+                updates: impl IntoIterator<Item = ::steel_extension_api::menus::MenuItemUpdate>,
+            ) -> Result<bool, String> {
+                let updates: ::steel_extension_api::stabby::vec::Vec<_> = updates.into_iter().collect();
+                for update in &updates {
+                    live_slot(update.slot)?;
+                }
+                ::steel_extension_api::ApiResultExt::into_result(
+                    server.update_menu(self.player, self.id, updates),
+                )
+            }
+
+            /// Requests a close for this view. Returns false if it is no longer open.
+            pub fn close(self, server: &::steel_extension_api::Server<'_>) -> bool {
+                server.close_menu_instance(self.player, self.id)
+            }
+        }
+
         pub fn register_assets(
             registry: &mut ::steel_extension_api::content::ContentRegistry<'_>,
         ) -> Result<(), String> {
@@ -167,18 +215,18 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
         pub fn open(
             server: &::steel_extension_api::Server<'_>,
             player: ::steel_extension_api::PlayerId,
-            handler: ::steel_extension_api::menus::MenuHandler,
-        ) -> Result<u64, String> {
-            render(server, player)?.open(server, player, handler)
+            handler: Handler,
+        ) -> Result<Session, String> {
+            open_with(server, player, handler, [])
         }
 
         /// Open with values for the declared live regions.
         pub fn open_with(
             server: &::steel_extension_api::Server<'_>,
             player: ::steel_extension_api::PlayerId,
-            handler: ::steel_extension_api::menus::MenuHandler,
+            handler: Handler,
             updates: impl IntoIterator<Item = ::steel_extension_api::menus::MenuItemUpdate>,
-        ) -> Result<u64, String> {
+        ) -> Result<Session, String> {
             let mut rendered = render(server, player)?;
             for update in updates {
                 let slot = live_slot(update.slot)?;
@@ -186,20 +234,8 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
                     .ok_or_else(|| format!("rendered menu is missing live slot {slot}"))?;
                 *item = update.item;
             }
-            rendered.open(server, player, handler)
-        }
-
-        /// Change the items in declared live regions.
-        pub fn update(
-            server: &::steel_extension_api::Server<'_>,
-            player: ::steel_extension_api::PlayerId,
-            menu: u64,
-            updates: ::steel_extension_api::stabby::vec::Vec<::steel_extension_api::menus::MenuItemUpdate>,
-        ) -> Result<bool, String> {
-            for update in &updates {
-                live_slot(update.slot)?;
-            }
-            server.update_menu(player, menu, updates).match_owned(Ok, |error| Err(error.to_string()))
+            let id = rendered.open(server, player, handler.0)?;
+            Ok(Session { player, id })
         }
 
         fn live_slot(slot: i32) -> Result<usize, String> {
@@ -209,7 +245,7 @@ fn rust(menu: &ResolvedMenu) -> Tokens {
             Ok(slot as usize)
         }
 
-        pub fn action(click: ::steel_extension_api::menus::MenuClick) -> Option<Action> {
+        fn action(click: ::steel_extension_api::menus::MenuClick) -> Option<Action> {
             if click.kind != ::steel_extension_api::events::ClickKind::Pickup
                 || !matches!(click.button, 0 | 1)
             {

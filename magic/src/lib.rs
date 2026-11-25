@@ -7,7 +7,7 @@ mod state;
 
 use std::sync::OnceLock;
 use steel_extension_api::{
-    ApiResult, ExtensionContext, Hooks, Server,
+    ApiResult, ApiResultExt, ExtensionContext, Hooks, Server,
     command::CommandBuilder,
     content::{ContentRegistry, ItemAppearance, ItemDefinition},
     events::{EventPriority, Hand, InteractAction, InteractEntityEvent, InteractEvent},
@@ -38,21 +38,19 @@ fn source() -> Result<Source, String> {
         .ok_or_else(|| "magic HUD is not initialized".into())
 }
 
-#[stabby::export(callback)]
-fn register(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
-    let result = (|| {
-        state::MANA_SPRITES.register(&mut registry)?;
-        api(registry.register_item(ItemDefinition {
+fn register(registry: &mut ContentRegistry<'_>) -> Result<(), String> {
+    state::MANA_SPRITES.register(registry)?;
+    registry
+        .register_item(ItemDefinition {
             key: WAND.into(),
             name: "Spell wand".into(),
             max_stack_size: 1,
             appearance: ItemAppearance::new("minecraft:blaze_rod").with_model(WAND),
-        }))
-    })();
-    result.map_err(Into::into).into()
+        })
+        .into_result()
 }
 fn pre_init(mut hooks: Hooks<'_>) -> Result<(), String> {
-    api(hooks.register_content_registration(register))?;
+    hooks.on_content(register)?;
     hooks.subscribe_interact(EventPriority::Normal, true, interact, 0);
     hooks.subscribe_interact_entity(EventPriority::Normal, true, interact_entity, 0);
     hooks.subscribe_damage(EventPriority::High, true, protection::damage, 0);

@@ -1,18 +1,17 @@
 use super::{api, balls, source};
 use steel_extension_api::{
-    ApiResult, PlayerId, Server,
-    content::ContentRegistry,
+    PlayerId, Server,
     data::Value,
     hud::{HudIcon, HudSprites, HudText, Source},
     items::ItemSpec,
-    stabby::{self, vec::Vec},
+    stabby::vec::Vec,
     text::Text,
 };
 
 pub const PARTY: usize = 6;
 const SIDEBAR_CREATURES: usize = 3;
 const HEALTH_HEARTS: u16 = 5;
-const PARTY_SPRITES: HudSprites<'static> = HudSprites::new("creatures:hud/party")
+pub const PARTY_SPRITES: HudSprites<'static> = HudSprites::new("creatures:hud/party")
     .with_gauge_sprites(
         "minecraft:gui/sprites/hud/heart/full.png",
         "minecraft:gui/sprites/hud/heart/container.png",
@@ -23,14 +22,6 @@ const PARTY_SPRITES: HudSprites<'static> = HudSprites::new("creatures:hud/party"
         HudIcon::new(balls::KEYS[2], "creatures:item/hyper_ball.png"),
     ]);
 pub const THROW_AFTER: &str = "creatures:state/throw_after";
-
-#[stabby::export(callback)]
-pub fn register_sprites(mut registry: ContentRegistry<'_>) -> ApiResult<()> {
-    PARTY_SPRITES
-        .register(&mut registry)
-        .map_err(Into::into)
-        .into()
-}
 
 /// Vanilla can send entity-interaction followed by item-use for one click.
 /// Reserve an authored use interval before either callback changes inventory.

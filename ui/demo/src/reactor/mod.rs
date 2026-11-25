@@ -1,13 +1,8 @@
-use std::{
-    collections::HashMap,
-    sync::{LazyLock, OnceLock},
-};
+use std::{collections::HashMap, sync::LazyLock};
 
 use parking_lot::Mutex;
 use steel_extension_api::{
-    PlayerId, Server,
-    content::ContentRegistry,
-    menus::{self, MenuClick, MenuHandler, MenuItemUpdate},
+    ApiResultExt, PlayerId, Server, content::ContentRegistry, menus::MenuItemUpdate,
     stabby::vec::Vec as ApiVec,
 };
 use steel_ui_api::labelled_item;
@@ -19,11 +14,11 @@ use layout::{Action, METER_OFF, slots};
 
 const TICKS_PER_FRAME: u64 = 3;
 
-static HANDLER: OnceLock<MenuHandler> = OnceLock::new();
+static HANDLER: LazyLock<layout::Handler> = LazyLock::new(|| layout::handler(click));
 static SCREENS: LazyLock<Mutex<HashMap<PlayerId, Screen>>> = LazyLock::new(Mutex::default);
 
 struct Screen {
-    menu: u64,
+    session: layout::Session,
     assets: &'static str,
     packed: bool,
     charge: usize,
@@ -37,18 +32,9 @@ pub(super) fn register_assets(registry: &mut ContentRegistry<'_>) -> Result<(), 
     HEAT_GAUGE.register(registry, assets)
 }
 
-pub(super) fn init() -> Result<(), String> {
-    HANDLER
-        .set(menus::handler(click))
-        .map_err(|_| "Reactor demo initialized twice".into())
-}
-
 pub(super) fn open(server: &Server<'_>, player: PlayerId) -> Result<(), String> {
-    let handler = HANDLER.get().copied().ok_or("Reactor is not initialized")?;
     let assets = layout::asset_key()?;
-    let packed = server
-        .player_uses_resource_pack(player)
-        .match_owned(Ok, |error| Err(error.to_string()))?;
+    let packed = server.player_uses_resource_pack(player).into_result()?;
     let mut initial = vec![
         material(slots::FEED, "minecraft:raw_copper", "Raw copper", "Feed"),
         material(slots::FLUX, "minecraft:redstone", "Redstone", "Flux"),
@@ -58,11 +44,11 @@ pub(super) fn open(server: &Server<'_>, player: PlayerId) -> Result<(), String> 
     if packed {
         initial.extend(ENERGY_GAUGE.clear().chain(HEAT_GAUGE.clear()));
     }
-    let menu = layout::open_with(server, player, handler, initial)?;
+    let session = layout::open_with(server, player, *HANDLER, initial)?;
     SCREENS.lock().insert(
         player,
         Screen {
-            menu,
+            session,
             assets,
             packed,
             charge: 0,
@@ -72,31 +58,27 @@ pub(super) fn open(server: &Server<'_>, player: PlayerId) -> Result<(), String> 
     Ok(())
 }
 
-fn click(server: &Server<'_>, click: MenuClick) {
-    let Some(action) = layout::action(click) else {
-        return;
-    };
+fn click(server: &Server<'_>, session: layout::Session, action: Action) {
+    let player = session.player();
     let updates = {
         let mut screens = SCREENS.lock();
         let Some(screen) = screens
-            .get_mut(&click.player)
-            .filter(|screen| screen.menu == click.menu)
+            .get_mut(&player)
+            .filter(|screen| screen.session == session)
         else {
             return;
         };
         match action {
             Action::Run => screen.start(),
             Action::Close => {
-                screens.remove(&click.player);
+                screens.remove(&player);
                 drop(screens);
-                if let Err(error) = server.close_menu(click.player).match_owned(Ok, Err) {
-                    eprintln!("Reactor menu close failed: {error}");
-                }
+                session.close(server);
                 return;
             }
         }
     };
-    publish(server, click.player, click.menu, updates);
+    publish(server, session, updates);
 }
 
 pub(super) fn tick(server: &Server<'_>, tick: u64) {
@@ -105,24 +87,25 @@ pub(super) fn tick(server: &Server<'_>, tick: u64) {
     }
     let frames: Vec<_> = SCREENS
         .lock()
-        .iter_mut()
-        .map(|(&player, screen)| (player, screen.menu, screen.advance()))
+        .values_mut()
+        .map(|screen| (screen.session, screen.advance()))
         .collect();
-    for (player, menu, updates) in frames {
-        publish(server, player, menu, updates);
+    for (session, updates) in frames {
+        publish(server, session, updates);
     }
 }
 
-fn publish(server: &Server<'_>, player: PlayerId, menu: u64, updates: ApiVec<MenuItemUpdate>) {
-    match layout::update(server, player, menu, updates) {
+fn publish(server: &Server<'_>, session: layout::Session, updates: ApiVec<MenuItemUpdate>) {
+    match session.update(server, updates) {
         Ok(true) => return,
         Ok(false) => {}
         Err(error) => eprintln!("Reactor menu update failed: {error}"),
     }
+    let player = session.player();
     let mut screens = SCREENS.lock();
     if screens
         .get(&player)
-        .is_some_and(|screen| screen.menu == menu)
+        .is_some_and(|screen| screen.session == session)
     {
         screens.remove(&player);
     }

@@ -119,12 +119,16 @@ python3 extension-example/ui/ui-art.py gauge energy-fill-source.png energy-fill.
 
 To use the macro in your own extension, add `steel-ui-macros` and `steel-ui-api`
 as dependencies. Declare `depends: ["steel-ui"]` in `export_extension!`.
-Place one `rsx!` declaration in each menu module. It generates
-`register_assets` for content registration and `open` or `open_with` for
-opening the screen. Register a `MenuHandler` once and match on `action(click)`
-in its callback. Pass the returned menu ID to the generated `update` function
-to change a live region. The [Furnace](demo/src/furnace.rs) and
-[Reactor](demo/src/reactor/layout.rs) show both kinds of regions.
+Place one `rsx!` declaration in each menu module. Subscribe its generated
+`register_assets` function with `hooks.on_content`. Create a handler with the
+module's `handler` function. It receives the player's `Session` and the typed
+`Action` for the clicked widget.
+
+`open` and `open_with` return the same kind of `Session` for the opened view.
+Keep it alongside any screen state and use `session.update(server, updates)`
+and `session.close(server)`. A handle from a closed or replaced view returns
+`false`. The [Furnace](demo/src/lib.rs) and [Reactor](demo/src/reactor/mod.rs)
+show how to update live slots from a click or a tick.
 
 ## Validate
 
