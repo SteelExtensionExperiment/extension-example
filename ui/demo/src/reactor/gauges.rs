@@ -50,7 +50,7 @@ impl Gauge {
         let texture = format!("{path}/{}", self.name);
         registry
             .add_resource_asset(
-                format!("assets/{namespace}/textures/item/{texture}.png")
+                format!("assets/{namespace}/textures/{texture}.png")
                     .as_str()
                     .into(),
                 self.atlas.into(),
@@ -72,7 +72,7 @@ impl Gauge {
             let model = format!(
                 r##"{{
                     "gui_light":"front",
-                    "textures":{{"fill":"{namespace}:item/{texture}","particle":"#fill"}},
+                    "textures":{{"fill":"{namespace}:{texture}","particle":"#fill"}},
                     "display":{{"gui":{{"translation":[0,1,0]}}}},
                     "elements":[{{
                         "from":[5,{MODEL_BOTTOM},7.5],"to":[11,{MODEL_TOP},8.5],

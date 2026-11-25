@@ -76,6 +76,10 @@ Two extensions can both declare `lobby`. A second `lobby` in the same extension
 is a registration error. Use the generated `asset_key()` after registration to
 derive keys for any additional artwork belonging to that menu.
 
+The generated pack stores menu PNGs under `assets/<extension-name>/textures/ui/`.
+Widget images and gauge atlases go in the menu's subdirectory. Steel adds
+`textures/ui/` to the item atlas so the models can use those PNGs directly.
+
 Placement, size, and click actions are fixed. A widget's item and image are
 also fixed by default. Add `live: NAME` to let `open_with` and `update` change
 its contents. `slots::NAME` is a slot index for a 1×1 widget and a row-ordered

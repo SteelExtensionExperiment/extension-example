@@ -45,7 +45,7 @@ impl ContainerSkin {
         let font = format!(
             r#"{{"providers":[
                 {{"type":"space","advances":{{"{LEFT_GLYPH}":{x}}}}},
-                {{"type":"bitmap","file":"{namespace}:gui/{path}.png",
+                {{"type":"bitmap","file":"{namespace}:{path}.png",
                    "height":{height},"ascent":{ascent},"chars":["{FACE_GLYPH}"]}}
             ]}}"#
         );
@@ -54,10 +54,7 @@ impl ContainerSkin {
                 format!("assets/{namespace}/font/{path}.json"),
                 font.as_bytes(),
             ),
-            (
-                format!("assets/{namespace}/textures/gui/{path}.png"),
-                self.png,
-            ),
+            (format!("assets/{namespace}/textures/{path}.png"), self.png),
         ] {
             registry
                 .add_resource_asset(path.as_str().into(), bytes.into())
